@@ -1,0 +1,18 @@
+# Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Secrets — NEVER commit these
+.env
+application-local.yml
+secret.yml
+k8s/secret.yml
+
+# OS
+.DS_Store
+Thumbs.db
