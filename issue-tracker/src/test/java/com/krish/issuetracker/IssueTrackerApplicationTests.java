@@ -1,4 +1,4 @@
-package com.krish.issue_tracker;
+package com.krish.issuetracker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

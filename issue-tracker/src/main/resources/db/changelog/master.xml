@@ -4,4 +4,8 @@
 		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
 				https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+	<include file="v1.0.0/001-create-core-tenant-tables.sql" relativeToChangelogFile="true"/>
+	<include file="v1.0.0/002-create-issue-workflow-tables.sql" relativeToChangelogFile="true"/>
+	<include file="v1.0.0/003-create-audit-analytics-indexes.sql" relativeToChangelogFile="true"/>
+	<include file="v1.0.0/004-schema-corrections.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

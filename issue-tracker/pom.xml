@@ -35,6 +35,7 @@
 		<springdoc.version>2.5.0</springdoc.version>
 		<bucket4j.version>8.10.1</bucket4j.version>
 		<dependency-check.version>12.1.0</dependency-check.version>
+		<jacoco.version>0.8.12</jacoco.version>
 	</properties>
 	<dependencies>
 		<dependency>

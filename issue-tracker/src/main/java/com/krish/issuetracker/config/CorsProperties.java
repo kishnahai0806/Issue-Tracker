@@ -1,4 +1,4 @@
-package com.krish.issue_tracker.config;
+package com.krish.issuetracker.config;
 
 import java.util.List;
 
