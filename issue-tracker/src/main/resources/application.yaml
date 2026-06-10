@@ -1,3 +1,110 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
     name: issue-tracker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/issue_tracker}
+    username: ${SPRING_DATASOURCE_USERNAME:issue_tracker_local}
+    password: ${SPRING_DATASOURCE_PASSWORD:local-dev-password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    change-log: classpath:db/changelog/master.xml
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+  cache:
+    type: redis
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:10MB}
+
+management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:8090}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+    prometheus:
+      enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.10}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-dev-change-me-minimum-32-characters}
+      issuer: ${JWT_ISSUER:issue-tracker-local}
+      audience: ${JWT_AUDIENCE:issue-tracker-api}
+      access-token-expiration-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
+      refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}
+    rate-limiting:
+      auth:
+        capacity: ${AUTH_RATE_LIMIT_CAPACITY:5}
+        refill-tokens: ${AUTH_RATE_LIMIT_REFILL_TOKENS:5}
+        refill-period: ${AUTH_RATE_LIMIT_REFILL_PERIOD:PT1M}
+  storage:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    bucket: ${MINIO_BUCKET:issue-tracker-local}
+    access-key: ${MINIO_ACCESS_KEY:minio-local-access}
+    secret-key: ${MINIO_SECRET_KEY:minio-local-secret}
+    max-file-size: ${STORAGE_MAX_FILE_SIZE:10MB}
+    allowed-content-types: ${STORAGE_ALLOWED_CONTENT_TYPES:application/pdf,image/png,image/jpeg,text/plain}
+  issues:
+    creation:
+      idempotency:
+        ttl: ${ISSUE_CREATION_IDEMPOTENCY_TTL:PT24H}
+  analytics:
+    batch:
+      schedule: "${ANALYTICS_BATCH_SCHEDULE:0 0 * * * *}"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}

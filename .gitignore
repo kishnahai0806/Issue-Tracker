@@ -7,12 +7,27 @@ target/
 *.iml
 .vscode/
 
-# Secrets — NEVER commit these
+# Secrets - NEVER commit these
 .env
 application-local.yml
+application-local.yaml
 secret.yml
 k8s/secret.yml
+k8s/secrets*.yml
+k8s/secrets*.yaml
+k8s/*-secret.yml
+k8s/*-secret.yaml
+
+# Local generated data
+logs/
+.data/
+postgres-data/
+redis-data/
+minio-data/
+grafana-data/
 
 # OS
 .DS_Store
 Thumbs.db
+
+AGENTS.md
