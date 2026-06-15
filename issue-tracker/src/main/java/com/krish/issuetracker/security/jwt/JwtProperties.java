@@ -15,15 +15,24 @@ public class JwtProperties {
 	@Positive
 	private final long accessTokenExpiryMs;
 
+	@Positive
+	private final long refreshTokenExpiryMs;
+
 	@NotBlank
 	private final String issuer;
 
 	@NotBlank
 	private final String audience;
 
-	public JwtProperties(String secret, long accessTokenExpiryMs, String issuer, String audience) {
+	public JwtProperties(
+			String secret,
+			long accessTokenExpiryMs,
+			long refreshTokenExpiryMs,
+			String issuer,
+			String audience) {
 		this.secret = secret;
 		this.accessTokenExpiryMs = accessTokenExpiryMs;
+		this.refreshTokenExpiryMs = refreshTokenExpiryMs;
 		this.issuer = issuer;
 		this.audience = audience;
 	}
@@ -34,6 +43,10 @@ public class JwtProperties {
 
 	public long getAccessTokenExpiryMs() {
 		return accessTokenExpiryMs;
+	}
+
+	public long getRefreshTokenExpiryMs() {
+		return refreshTokenExpiryMs;
 	}
 
 	public String getIssuer() {
