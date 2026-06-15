@@ -75,6 +75,51 @@ public class GlobalExceptionHandler {
 				request);
 	}
 
+	@ExceptionHandler(OrganizationNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleOrganizationNotFound(
+			OrganizationNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(ProjectNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleProjectNotFound(
+			ProjectNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(MemberAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleMemberAlreadyExists(
+			MemberAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(MemberNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleMemberNotFound(
+			MemberNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ErrorResponse> handleBusinessAccessDenied(HttpServletRequest request) {
+		return errorResponse(HttpStatus.FORBIDDEN, "Access denied", request);
+	}
+
+	@ExceptionHandler(ProjectKeyAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleProjectKeyAlreadyExists(
+			ProjectKeyAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+	public ResponseEntity<ErrorResponse> handleSpringSecurityAccessDenied(HttpServletRequest request) {
+		return errorResponse(HttpStatus.FORBIDDEN, "Access denied", request);
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex, HttpServletRequest request) {
 		log.error("Unhandled exception for request {}", request.getRequestURI(), ex);
