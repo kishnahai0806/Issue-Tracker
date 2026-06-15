@@ -7,6 +7,7 @@ import com.krish.issuetracker.config.InvalidCorsConfigurationException;
 import com.krish.issuetracker.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -46,6 +47,7 @@ public class SecurityConfig {
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(authorize -> authorize
+						.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
 						.requestMatchers("/api/v1/auth/**").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						// Tomcat re-dispatches sendError() to /error; without this, error responses return wrong status.
