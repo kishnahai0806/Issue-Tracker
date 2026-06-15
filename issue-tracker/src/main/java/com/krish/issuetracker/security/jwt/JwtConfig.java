@@ -16,11 +16,15 @@ public class JwtConfig {
 	}
 
 	@Bean
+	public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, TokenBlacklist tokenBlacklist) {
+		return new JwtAuthenticationFilter(jwtService, tokenBlacklist);
+	}
+
+	@Bean
 	public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(
-			JwtService jwtService,
-			TokenBlacklist tokenBlacklist) {
+			JwtAuthenticationFilter jwtAuthenticationFilter) {
 		FilterRegistrationBean<JwtAuthenticationFilter> registrationBean = new FilterRegistrationBean<>();
-		registrationBean.setFilter(new JwtAuthenticationFilter(jwtService, tokenBlacklist));
+		registrationBean.setFilter(jwtAuthenticationFilter);
 		registrationBean.setEnabled(false);
 		return registrationBean;
 	}

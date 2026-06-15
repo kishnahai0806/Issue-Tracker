@@ -1,29 +1,40 @@
-package com.krish.issuetracker.config;
+package com.krish.issuetracker.security;
 
+import java.util.Arrays;
 import java.util.List;
 
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import com.krish.issuetracker.config.InvalidCorsConfigurationException;
+import com.krish.issuetracker.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(CorsProperties.class)
 public class SecurityConfig {
 
-	private final CorsProperties corsProperties;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final String allowedOrigins;
 
-	public SecurityConfig(CorsProperties corsProperties) {
-		this.corsProperties = corsProperties;
+	public SecurityConfig(
+			JwtAuthenticationFilter jwtAuthenticationFilter,
+			@Value("${cors.allowed-origins}") String allowedOrigins) {
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+		this.allowedOrigins = allowedOrigins;
 	}
 
 	@Bean
@@ -35,9 +46,14 @@ public class SecurityConfig {
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(authorize -> authorize
+						.requestMatchers("/api/v1/auth/**").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						// Tomcat re-dispatches sendError() to /error; without this, error responses return wrong status.
 						.requestMatchers("/error").permitAll()
-						.requestMatchers(EndpointRequest.to("health")).permitAll()
+						// Swagger endpoints are profile-gated by springdoc settings and must remain disabled in production.
+						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 						.anyRequest().authenticated())
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 				.build();
 	}
 
@@ -50,6 +66,7 @@ public class SecurityConfig {
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Idempotency-Key"));
 		configuration.setExposedHeaders(List.of("Location"));
+		// Credentials with wildcard origins allow cross-site credential abuse; use explicit origins only.
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
 
@@ -59,22 +76,27 @@ public class SecurityConfig {
 	}
 
 	private List<String> allowedOrigins() {
-		List<String> origins = corsProperties.allowedOrigins();
-
-		if (origins == null || origins.isEmpty()) {
-			throw new InvalidCorsConfigurationException("app.cors.allowed-origins must contain at least one explicit origin");
-		}
-
-		List<String> normalizedOrigins = origins.stream()
+		List<String> origins = Arrays.stream(StringUtils.commaDelimitedListToStringArray(allowedOrigins))
 				.map(String::trim)
 				.filter(origin -> !origin.isEmpty())
 				.toList();
 
-		if (normalizedOrigins.isEmpty() || normalizedOrigins.contains("*")) {
+		if (origins.isEmpty() || origins.contains("*")) {
 			throw new InvalidCorsConfigurationException("Wildcard or empty CORS origins are not allowed");
 		}
 
-		return normalizedOrigins;
+		return origins;
+	}
+
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		// Strength 12 raises BCrypt work factor above the default 10 for production password verification cost.
+		return new BCryptPasswordEncoder(12);
+	}
+
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+		return authenticationConfiguration.getAuthenticationManager();
 	}
 
 }
