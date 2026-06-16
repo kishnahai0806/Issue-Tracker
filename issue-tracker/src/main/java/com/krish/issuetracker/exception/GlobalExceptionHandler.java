@@ -75,6 +75,13 @@ public class GlobalExceptionHandler {
 				request);
 	}
 
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ErrorResponse> handleIllegalArgument(
+			IllegalArgumentException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(OrganizationNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleOrganizationNotFound(
 			OrganizationNotFoundException ex,
