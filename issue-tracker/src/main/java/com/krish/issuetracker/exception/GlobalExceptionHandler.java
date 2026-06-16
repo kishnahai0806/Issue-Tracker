@@ -96,6 +96,27 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(IssueNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleIssueNotFound(
+			IssueNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(CommentNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleCommentNotFound(
+			CommentNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LabelNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleLabelNotFound(
+			LabelNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(UserNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleUserNotFound(
 			UserNotFoundException ex,
@@ -127,6 +148,27 @@ public class GlobalExceptionHandler {
 			ProjectKeyAlreadyExistsException ex,
 			HttpServletRequest request) {
 		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LabelAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleLabelAlreadyExists(
+			LabelAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(IssueNumberGenerationException.class)
+	public ResponseEntity<ErrorResponse> handleIssueNumberGeneration(
+			IssueNumberGenerationException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate issue number, please retry", request);
+	}
+
+	@ExceptionHandler(OptimisticLockException.class)
+	public ResponseEntity<ErrorResponse> handleOptimisticLock(
+			OptimisticLockException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, "Issue was modified by another request, please retry", request);
 	}
 
 	@ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
