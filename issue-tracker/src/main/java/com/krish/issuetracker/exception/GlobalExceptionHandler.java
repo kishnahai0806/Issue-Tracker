@@ -89,6 +89,13 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(UserNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleUserNotFound(
+			UserNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(MemberAlreadyExistsException.class)
 	public ResponseEntity<ErrorResponse> handleMemberAlreadyExists(
 			MemberAlreadyExistsException ex,
