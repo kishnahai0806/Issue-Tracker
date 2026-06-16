@@ -1,6 +1,7 @@
 package com.krish.issuetracker.repository;
 
 import java.util.UUID;
+import java.util.List;
 
 import com.krish.issuetracker.domain.entity.IssueWatcher;
 import com.krish.issuetracker.domain.entity.IssueWatcherId;
@@ -11,4 +12,6 @@ public interface IssueWatcherRepository extends JpaRepository<IssueWatcher, Issu
 	boolean existsByIdIssueIdAndIdUserId(UUID issueId, UUID userId);
 
 	void deleteByIdIssueIdAndIdUserId(UUID issueId, UUID userId);
+
+	List<IssueWatcher> findAllByIdIssueId(UUID issueId);
 }
