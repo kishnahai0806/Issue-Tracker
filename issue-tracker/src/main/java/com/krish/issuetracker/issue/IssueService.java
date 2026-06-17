@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -14,6 +15,8 @@ import com.krish.issuetracker.domain.entity.IssueLabel;
 import com.krish.issuetracker.domain.entity.IssueLabelId;
 import com.krish.issuetracker.domain.entity.IssueWatcher;
 import com.krish.issuetracker.domain.entity.IssueWatcherId;
+import com.krish.issuetracker.domain.entity.Project;
+import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.IssueStatus;
 import com.krish.issuetracker.exception.IssueNotFoundException;
 import com.krish.issuetracker.exception.OptimisticLockException;
@@ -28,12 +31,14 @@ import com.krish.issuetracker.issue.dto.IssueSummaryResponse;
 import com.krish.issuetracker.issue.dto.PagedIssueResponse;
 import com.krish.issuetracker.issue.dto.UpdateIssueRequest;
 import com.krish.issuetracker.label.dto.LabelResponse;
+import com.krish.issuetracker.notification.NotificationEventPublisher;
 import com.krish.issuetracker.repository.IssueAuditLogRepository;
 import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueLabelRepository;
 import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
+import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import com.krish.issuetracker.websocket.IssueUpdateEvent;
 import com.krish.issuetracker.websocket.WebSocketEventPublisher;
@@ -56,8 +61,10 @@ public class IssueService {
 	private final IssueWatcherRepository issueWatcherRepository;
 	private final IssueAuditLogRepository issueAuditLogRepository;
 	private final ProjectRepository projectRepository;
+	private final UserRepository userRepository;
 	private final IssueNumberGenerator issueNumberGenerator;
 	private final WebSocketEventPublisher eventPublisher;
+	private final NotificationEventPublisher notificationEventPublisher;
 
 	public IssueService(
 			IssueRepository issueRepository,
@@ -66,8 +73,10 @@ public class IssueService {
 			IssueWatcherRepository issueWatcherRepository,
 			IssueAuditLogRepository issueAuditLogRepository,
 			ProjectRepository projectRepository,
+			UserRepository userRepository,
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
+			NotificationEventPublisher notificationEventPublisher,
 			OrganizationMemberPermissionEvaluator permissionEvaluator) {
 		this.issueRepository = issueRepository;
 		this.issueCommentRepository = issueCommentRepository;
@@ -75,8 +84,10 @@ public class IssueService {
 		this.issueWatcherRepository = issueWatcherRepository;
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.projectRepository = projectRepository;
+		this.userRepository = userRepository;
 		this.issueNumberGenerator = issueNumberGenerator;
 		this.eventPublisher = eventPublisher;
+		this.notificationEventPublisher = notificationEventPublisher;
 	}
 
 	@Transactional
@@ -168,21 +179,23 @@ public class IssueService {
 			UpdateIssueRequest request,
 			UUID requestingUserId) {
 		try {
-			verifyProjectAccess(orgId, projectId);
+			Project project = loadProject(orgId, projectId);
 			Issue issue = loadIssue(projectId, issueId);
 			if (!Objects.equals(issue.getVersion(), request.version())) {
 				throw new OptimisticLockException();
 			}
 			IssueStatus previousStatus = issue.getStatus();
+			UUID previousAssigneeId = issue.getAssigneeId();
 
 			List<IssueAuditLog> auditLogs = new ArrayList<>();
 			applyIssueUpdates(issue, request, requestingUserId, auditLogs);
 
 			Issue savedIssue = issueRepository.saveAndFlush(issue);
 			issueAuditLogRepository.saveAll(auditLogs);
-			String eventType = request.status() != null
-					&& !Objects.equals(previousStatus, savedIssue.getStatus())
-					&& (savedIssue.getStatus() == IssueStatus.DONE || savedIssue.getStatus() == IssueStatus.CLOSED)
+			boolean statusChanged = request.status() != null && !Objects.equals(previousStatus, savedIssue.getStatus());
+			boolean assigneeChanged = request.assigneeId() != null
+					&& !Objects.equals(previousAssigneeId, savedIssue.getAssigneeId());
+			String eventType = statusChanged && (savedIssue.getStatus() == IssueStatus.DONE || savedIssue.getStatus() == IssueStatus.CLOSED)
 					? "STATUS_CHANGED"
 					: "UPDATED";
 			eventPublisher.publishIssueUpdate(new IssueUpdateEvent(
@@ -190,6 +203,12 @@ public class IssueService {
 					savedIssue.getId(),
 					eventType,
 					requestingUserId));
+			if (assigneeChanged) {
+				publishIssueAssignedNotification(orgId, project, savedIssue, requestingUserId);
+			}
+			if (statusChanged) {
+				publishStatusChangedNotifications(orgId, project, savedIssue, previousStatus, requestingUserId);
+			}
 			return toIssueResponse(savedIssue, loadLabelResponses(savedIssue));
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new OptimisticLockException();
@@ -262,14 +281,75 @@ public class IssueService {
 		issueAuditLogRepository.save(auditLog);
 	}
 
-	private void verifyProjectAccess(UUID orgId, UUID projectId) {
-		projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
+	private Project loadProject(UUID orgId, UUID projectId) {
+		return projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
 				.orElseThrow(() -> new ProjectNotFoundException(projectId));
+	}
+
+	private void verifyProjectAccess(UUID orgId, UUID projectId) {
+		loadProject(orgId, projectId);
 	}
 
 	private Issue loadIssue(UUID projectId, UUID issueId) {
 		return issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId)
 				.orElseThrow(() -> new IssueNotFoundException(issueId));
+	}
+
+	private void publishIssueAssignedNotification(UUID orgId, Project project, Issue issue, UUID assignedBy) {
+		userRepository.findByIdAndIsActiveTrue(issue.getAssigneeId())
+				.ifPresent(assignee -> notificationEventPublisher.publishEmailNotification(
+						assignee.getEmail(),
+						assignee.getFullName(),
+						"You were assigned to " + issueKey(project, issue),
+						"issue-assigned",
+						Map.of(
+								"recipientName", assignee.getFullName(),
+								"issueKey", issueKey(project, issue),
+								"issueTitle", issue.getTitle(),
+								"projectName", project.getName(),
+								"assignedBy", displayName(assignedBy),
+								"issueUrl", issueUrl(orgId, project.getId(), issue.getId()))));
+	}
+
+	private void publishStatusChangedNotifications(
+			UUID orgId,
+			Project project,
+			Issue issue,
+			IssueStatus previousStatus,
+			UUID changedBy) {
+		issueWatcherRepository.findAllByIdIssueId(issue.getId())
+				.stream()
+				.map(watcher -> watcher.getId().getUserId())
+				.map(userRepository::findByIdAndIsActiveTrue)
+				.flatMap(java.util.Optional::stream)
+				.forEach(watcher -> notificationEventPublisher.publishEmailNotification(
+						watcher.getEmail(),
+						watcher.getFullName(),
+						"Status changed for " + issueKey(project, issue),
+						"status-changed",
+						Map.of(
+								"recipientName", watcher.getFullName(),
+								"issueKey", issueKey(project, issue),
+								"issueTitle", issue.getTitle(),
+								"projectName", project.getName(),
+								"oldStatus", previousStatus.name(),
+								"newStatus", issue.getStatus().name(),
+								"changedBy", displayName(changedBy),
+								"issueUrl", issueUrl(orgId, project.getId(), issue.getId()))));
+	}
+
+	private String displayName(UUID userId) {
+		return userRepository.findById(userId)
+				.map(User::getFullName)
+				.orElse(userId.toString());
+	}
+
+	private String issueKey(Project project, Issue issue) {
+		return project.getKey() + "-" + issue.getIssueNumber();
+	}
+
+	private String issueUrl(UUID orgId, UUID projectId, UUID issueId) {
+		return "/api/v1/organizations/" + orgId + "/projects/" + projectId + "/issues/" + issueId;
 	}
 
 	private void applyIssueUpdates(

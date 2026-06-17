@@ -2,11 +2,14 @@ package com.krish.issuetracker.comment;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.krish.issuetracker.domain.entity.Issue;
 import com.krish.issuetracker.domain.entity.IssueAuditLog;
 import com.krish.issuetracker.domain.entity.IssueComment;
+import com.krish.issuetracker.domain.entity.Project;
+import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.exception.AccessDeniedException;
 import com.krish.issuetracker.exception.CommentNotFoundException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
@@ -14,10 +17,13 @@ import com.krish.issuetracker.exception.ProjectNotFoundException;
 import com.krish.issuetracker.issue.dto.CommentResponse;
 import com.krish.issuetracker.issue.dto.CreateCommentRequest;
 import com.krish.issuetracker.issue.dto.UpdateCommentRequest;
+import com.krish.issuetracker.notification.NotificationEventPublisher;
 import com.krish.issuetracker.repository.IssueAuditLogRepository;
 import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueRepository;
+import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
+import com.krish.issuetracker.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -31,16 +37,25 @@ public class CommentService {
 	private final IssueAuditLogRepository issueAuditLogRepository;
 	private final IssueRepository issueRepository;
 	private final ProjectRepository projectRepository;
+	private final IssueWatcherRepository issueWatcherRepository;
+	private final UserRepository userRepository;
+	private final NotificationEventPublisher notificationEventPublisher;
 
 	public CommentService(
 			IssueCommentRepository issueCommentRepository,
 			IssueAuditLogRepository issueAuditLogRepository,
 			IssueRepository issueRepository,
-			ProjectRepository projectRepository) {
+			ProjectRepository projectRepository,
+			IssueWatcherRepository issueWatcherRepository,
+			UserRepository userRepository,
+			NotificationEventPublisher notificationEventPublisher) {
 		this.issueCommentRepository = issueCommentRepository;
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.issueRepository = issueRepository;
 		this.projectRepository = projectRepository;
+		this.issueWatcherRepository = issueWatcherRepository;
+		this.userRepository = userRepository;
+		this.notificationEventPublisher = notificationEventPublisher;
 	}
 
 	@Transactional
@@ -51,8 +66,8 @@ public class CommentService {
 			UUID issueId,
 			CreateCommentRequest request,
 			UUID authorId) {
-		verifyProjectAccess(orgId, projectId);
-		loadIssue(projectId, issueId);
+		Project project = loadProject(orgId, projectId);
+		Issue issue = loadIssue(projectId, issueId);
 
 		IssueComment comment = new IssueComment();
 		comment.setIssueId(issueId);
@@ -61,6 +76,7 @@ public class CommentService {
 
 		IssueComment savedComment = issueCommentRepository.save(comment);
 		issueAuditLogRepository.save(createAuditLog(issueId, authorId, "comment_added", null, savedComment.getId()));
+		publishCommentAddedNotifications(orgId, project, issue, savedComment, authorId);
 
 		log.info("Comment added: {} to issue {}", savedComment.getId(), issueId);
 		return toCommentResponse(savedComment);
@@ -112,9 +128,13 @@ public class CommentService {
 				.toList();
 	}
 
-	private void verifyProjectAccess(UUID orgId, UUID projectId) {
-		projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
+	private Project loadProject(UUID orgId, UUID projectId) {
+		return projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
 				.orElseThrow(() -> new ProjectNotFoundException(projectId));
+	}
+
+	private void verifyProjectAccess(UUID orgId, UUID projectId) {
+		loadProject(orgId, projectId);
 	}
 
 	private Issue loadIssue(UUID projectId, UUID issueId) {
@@ -148,6 +168,54 @@ public class CommentService {
 			return null;
 		}
 		return value.toString();
+	}
+
+	private void publishCommentAddedNotifications(
+			UUID orgId,
+			Project project,
+			Issue issue,
+			IssueComment comment,
+			UUID authorId) {
+		issueWatcherRepository.findAllByIdIssueId(issue.getId())
+				.stream()
+				.map(watcher -> watcher.getId().getUserId())
+				.filter(userId -> !authorId.equals(userId))
+				.map(userRepository::findByIdAndIsActiveTrue)
+				.flatMap(java.util.Optional::stream)
+				.forEach(watcher -> notificationEventPublisher.publishEmailNotification(
+						watcher.getEmail(),
+						watcher.getFullName(),
+						"New comment on " + issueKey(project, issue),
+						"comment-added",
+						Map.of(
+								"recipientName", watcher.getFullName(),
+								"issueKey", issueKey(project, issue),
+								"issueTitle", issue.getTitle(),
+								"projectName", project.getName(),
+								"commentAuthor", displayName(authorId),
+								"commentPreview", commentPreview(comment.getContent()),
+								"issueUrl", issueUrl(orgId, project.getId(), issue.getId()))));
+	}
+
+	private String displayName(UUID userId) {
+		return userRepository.findById(userId)
+				.map(User::getFullName)
+				.orElse(userId.toString());
+	}
+
+	private String commentPreview(String content) {
+		if (content.length() <= 200) {
+			return content;
+		}
+		return content.substring(0, 200);
+	}
+
+	private String issueKey(Project project, Issue issue) {
+		return project.getKey() + "-" + issue.getIssueNumber();
+	}
+
+	private String issueUrl(UUID orgId, UUID projectId, UUID issueId) {
+		return "/api/v1/organizations/" + orgId + "/projects/" + projectId + "/issues/" + issueId;
 	}
 
 	private CommentResponse toCommentResponse(IssueComment comment) {
