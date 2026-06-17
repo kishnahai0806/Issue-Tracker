@@ -7,6 +7,9 @@ import com.krish.issuetracker.auth.EmailAlreadyExistsException;
 import com.krish.issuetracker.auth.InvalidCredentialsException;
 import com.krish.issuetracker.auth.InvalidRefreshTokenException;
 import com.krish.issuetracker.auth.UserDisabledException;
+import com.krish.issuetracker.storage.validation.FileValidationException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -20,6 +23,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+	private final MeterRegistry meterRegistry;
+
+	public GlobalExceptionHandler(MeterRegistry meterRegistry) {
+		this.meterRegistry = meterRegistry;
+	}
 
 	@ExceptionHandler(EmailAlreadyExistsException.class)
 	public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
@@ -174,6 +183,26 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
 	public ResponseEntity<ErrorResponse> handleSpringSecurityAccessDenied(HttpServletRequest request) {
 		return errorResponse(HttpStatus.FORBIDDEN, "Access denied", request);
+	}
+
+	@ExceptionHandler(FileValidationException.class)
+	public ResponseEntity<ErrorResponse> handleFileValidation(
+			FileValidationException ex,
+			HttpServletRequest request) {
+		Counter.builder("file.upload.validation.failure")
+				.tag("reason", ex.getReason().name())
+				.register(meterRegistry)
+				.increment();
+
+		return switch (ex.getReason().name()) {
+			case "SIZE_EXCEEDED" -> errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request);
+			case "INVALID_TYPE" -> errorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
+			case "MAGIC_BYTE_MISMATCH" -> errorResponse(
+					HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+					"File content does not match declared type",
+					request);
+			default -> errorResponse(HttpStatus.BAD_REQUEST, "Invalid file upload", request);
+		};
 	}
 
 	@ExceptionHandler(Exception.class)
