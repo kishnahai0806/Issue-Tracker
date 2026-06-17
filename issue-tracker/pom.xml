@@ -34,6 +34,7 @@
 		<logstash.version>7.4</logstash.version>
 		<springdoc.version>2.5.0</springdoc.version>
 		<bucket4j.version>8.10.1</bucket4j.version>
+		<shedlock.version>5.16.0</shedlock.version>
 		<dependency-check.version>12.1.0</dependency-check.version>
 		<jacoco.version>0.8.12</jacoco.version>
 	</properties>
@@ -144,6 +145,16 @@
 			<groupId>com.bucket4j</groupId>
 			<artifactId>bucket4j-core</artifactId>
 			<version>${bucket4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-spring</artifactId>
+			<version>${shedlock.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-provider-redis-spring</artifactId>
+			<version>${shedlock.version}</version>
 		</dependency>
 
 		<dependency>
