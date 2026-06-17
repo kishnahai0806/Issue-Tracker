@@ -1,6 +1,7 @@
 package com.krish.issuetracker.security.jwt;
 
 import com.krish.issuetracker.security.TokenBlacklist;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,11 @@ public class JwtConfig {
 	}
 
 	@Bean
-	public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, TokenBlacklist tokenBlacklist) {
-		return new JwtAuthenticationFilter(jwtService, tokenBlacklist);
+	public JwtAuthenticationFilter jwtAuthenticationFilter(
+			JwtService jwtService,
+			TokenBlacklist tokenBlacklist,
+			MeterRegistry meterRegistry) {
+		return new JwtAuthenticationFilter(jwtService, tokenBlacklist, meterRegistry);
 	}
 
 	@Bean

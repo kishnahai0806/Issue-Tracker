@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Optional;
 
 import com.krish.issuetracker.security.TokenBlacklist;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -23,10 +25,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtService jwtService;
 	private final TokenBlacklist tokenBlacklist;
+	private final MeterRegistry meterRegistry;
 
-	public JwtAuthenticationFilter(JwtService jwtService, TokenBlacklist tokenBlacklist) {
+	public JwtAuthenticationFilter(JwtService jwtService, TokenBlacklist tokenBlacklist, MeterRegistry meterRegistry) {
 		this.jwtService = jwtService;
 		this.tokenBlacklist = tokenBlacklist;
+		this.meterRegistry = meterRegistry;
 	}
 
 	@Override
@@ -43,7 +47,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	}
 
 	private void authenticateToken(String token, HttpServletRequest request) {
-		if (!jwtService.validateToken(token) || tokenBlacklist.isBlacklisted(token)) {
+		if (!jwtService.validateToken(token)) {
+			meterRegistry.counter("auth.failures", "reason", "TOKEN_INVALID").increment();
+			SecurityContextHolder.clearContext();
+			return;
+		}
+		if (tokenBlacklist.isBlacklisted(token)) {
+			meterRegistry.counter("auth.failures", "reason", "TOKEN_EXPIRED").increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
@@ -53,6 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				new UsernamePasswordAuthenticationToken(userId, null, List.of());
 		authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 		SecurityContextHolder.getContext().setAuthentication(authentication);
+		MDC.put("userId", userId);
 	}
 
 	private Optional<String> extractToken(HttpServletRequest request) {

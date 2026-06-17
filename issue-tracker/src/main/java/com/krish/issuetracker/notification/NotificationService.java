@@ -2,6 +2,7 @@ package com.krish.issuetracker.notification;
 
 import java.nio.charset.StandardCharsets;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,15 +23,18 @@ public class NotificationService {
 	private final JavaMailSender javaMailSender;
 	private final SpringTemplateEngine templateEngine;
 	private final MailProperties mailProperties;
+	private final MeterRegistry meterRegistry;
 
 	public NotificationService(
 			JavaMailSender javaMailSender,
 			@Qualifier("emailTemplateEngine") SpringTemplateEngine templateEngine,
 			MailProperties mailProperties,
+			MeterRegistry meterRegistry,
 			@Qualifier("emailTaskExecutor") ThreadPoolTaskExecutor emailTaskExecutor) {
 		this.javaMailSender = javaMailSender;
 		this.templateEngine = templateEngine;
 		this.mailProperties = mailProperties;
+		this.meterRegistry = meterRegistry;
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -49,6 +53,7 @@ public class NotificationService {
 			helper.setText(body, true);
 
 			javaMailSender.send(mimeMessage);
+			meterRegistry.counter("emails.sent").increment();
 			log.info(
 					"Email sent: template={}, recipient={}",
 					event.getTemplateName(),

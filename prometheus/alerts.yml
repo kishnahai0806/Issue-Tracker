@@ -1,0 +1,47 @@
+groups:
+  - name: issue-tracker-alerts
+    rules:
+      - alert: HighAuthFailureRate
+        expr: rate(auth_failures_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: High authentication failure rate
+          description: More than 0.5 auth failures per second over 5 minutes may indicate credential stuffing.
+
+      - alert: APIHighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High 5xx error rate
+          description: More than 0.1 server errors per second.
+
+      - alert: BatchJobDurationHigh
+        expr: batch_analytics_snapshot_duration_seconds_sum / batch_analytics_snapshot_duration_seconds_count > 300
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: Batch analytics job taking over 5 minutes
+          description: Nightly analytics snapshot job duration exceeds expected threshold.
+
+      - alert: FileUploadValidationSpike
+        expr: rate(file_upload_validation_failure_total[5m]) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Spike in file upload validation failures
+          description: Elevated rejection rate may indicate automated upload probing.
+
+      - alert: JVMMemoryHigh
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: JVM heap usage above 85 percent
+          description: Application may be approaching memory limits; consider scaling or tuning.

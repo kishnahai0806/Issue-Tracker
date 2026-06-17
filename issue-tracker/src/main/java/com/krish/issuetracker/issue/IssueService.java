@@ -42,6 +42,7 @@ import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import com.krish.issuetracker.websocket.IssueUpdateEvent;
 import com.krish.issuetracker.websocket.WebSocketEventPublisher;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +66,7 @@ public class IssueService {
 	private final IssueNumberGenerator issueNumberGenerator;
 	private final WebSocketEventPublisher eventPublisher;
 	private final NotificationEventPublisher notificationEventPublisher;
+	private final MeterRegistry meterRegistry;
 
 	public IssueService(
 			IssueRepository issueRepository,
@@ -77,6 +79,7 @@ public class IssueService {
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
 			NotificationEventPublisher notificationEventPublisher,
+			MeterRegistry meterRegistry,
 			OrganizationMemberPermissionEvaluator permissionEvaluator) {
 		this.issueRepository = issueRepository;
 		this.issueCommentRepository = issueCommentRepository;
@@ -88,6 +91,7 @@ public class IssueService {
 		this.issueNumberGenerator = issueNumberGenerator;
 		this.eventPublisher = eventPublisher;
 		this.notificationEventPublisher = notificationEventPublisher;
+		this.meterRegistry = meterRegistry;
 	}
 
 	@Transactional
@@ -114,6 +118,7 @@ public class IssueService {
 			issue.setDueDate(request.dueDate());
 
 			Issue savedIssue = issueRepository.save(issue);
+			meterRegistry.counter("issues.created").increment();
 			saveIssueLabels(savedIssue, request.labelIds());
 			saveCreationAuditLog(savedIssue, reporterId);
 			eventPublisher.publishIssueUpdate(new IssueUpdateEvent(
@@ -195,6 +200,9 @@ public class IssueService {
 			boolean statusChanged = request.status() != null && !Objects.equals(previousStatus, savedIssue.getStatus());
 			boolean assigneeChanged = request.assigneeId() != null
 					&& !Objects.equals(previousAssigneeId, savedIssue.getAssigneeId());
+			if (statusChanged && (savedIssue.getStatus() == IssueStatus.DONE || savedIssue.getStatus() == IssueStatus.CLOSED)) {
+				meterRegistry.counter("issues.closed").increment();
+			}
 			String eventType = statusChanged && (savedIssue.getStatus() == IssueStatus.DONE || savedIssue.getStatus() == IssueStatus.CLOSED)
 					? "STATUS_CHANGED"
 					: "UPDATED";
