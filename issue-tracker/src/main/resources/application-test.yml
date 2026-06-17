@@ -1,0 +1,53 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  batch:
+    jdbc:
+      initialize-schema: never
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+jwt:
+  secret: "test-secret-key-minimum-32-characters-long-for-testing"
+  access-token-expiry-ms: 900000
+  issuer: issue-tracker-test
+  audience: issue-tracker-client-test
+  refresh-token-expiry-ms: 604800000
+
+mail:
+  username: "test"
+  password: "test"
+  from-address: "test@issuetracker.com"
+  from-name: "Issue Tracker Test"
+  thread-pool-core-size: 1
+  thread-pool-max-size: 1
+  thread-pool-queue-capacity: 10
+
+storage:
+  endpoint: "http://localhost:9000"
+  access-key: "test-access-key"
+  secret-key: "test-secret-key"
+  bucket-name: "test-bucket"
+  presigned-url-expiry-minutes: 60
+  max-file-size-bytes: 10485760
+
+cors:
+  allowed-origins: "http://localhost:3000"
+
+batch:
+  analytics:
+    cron: "0 0 1 * * *"
+
+logging:
+  level:
+    root: WARN
+    com.krish.issuetracker: INFO
