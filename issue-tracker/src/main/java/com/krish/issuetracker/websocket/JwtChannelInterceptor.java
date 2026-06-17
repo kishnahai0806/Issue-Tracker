@@ -4,6 +4,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.repository.ProjectRepository;
@@ -35,14 +36,17 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 	private final JwtService jwtService;
 	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
 	private final ProjectRepository projectRepository;
+	private final AtomicInteger wsActiveConnections;
 
 	public JwtChannelInterceptor(
 			JwtService jwtService,
 			OrganizationMemberPermissionEvaluator permissionEvaluator,
-			ProjectRepository projectRepository) {
+			ProjectRepository projectRepository,
+			AtomicInteger wsActiveConnections) {
 		this.jwtService = jwtService;
 		this.permissionEvaluator = permissionEvaluator;
 		this.projectRepository = projectRepository;
+		this.wsActiveConnections = wsActiveConnections;
 	}
 
 	@Override
@@ -57,6 +61,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 		}
 		if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
 			handleSubscribe(accessor);
+		}
+		if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+			wsActiveConnections.updateAndGet(current -> Math.max(0, current - 1));
 		}
 
 		return message;
@@ -76,6 +83,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 				null,
 				List.of());
 		accessor.setUser(authentication);
+		wsActiveConnections.incrementAndGet();
 	}
 
 	private void handleSubscribe(StompHeaderAccessor accessor) {

@@ -24,6 +24,7 @@ import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class CommentService {
 	private final IssueWatcherRepository issueWatcherRepository;
 	private final UserRepository userRepository;
 	private final NotificationEventPublisher notificationEventPublisher;
+	private final MeterRegistry meterRegistry;
 
 	public CommentService(
 			IssueCommentRepository issueCommentRepository,
@@ -48,7 +50,8 @@ public class CommentService {
 			ProjectRepository projectRepository,
 			IssueWatcherRepository issueWatcherRepository,
 			UserRepository userRepository,
-			NotificationEventPublisher notificationEventPublisher) {
+			NotificationEventPublisher notificationEventPublisher,
+			MeterRegistry meterRegistry) {
 		this.issueCommentRepository = issueCommentRepository;
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.issueRepository = issueRepository;
@@ -56,6 +59,7 @@ public class CommentService {
 		this.issueWatcherRepository = issueWatcherRepository;
 		this.userRepository = userRepository;
 		this.notificationEventPublisher = notificationEventPublisher;
+		this.meterRegistry = meterRegistry;
 	}
 
 	@Transactional
@@ -75,6 +79,7 @@ public class CommentService {
 		comment.setContent(request.content());
 
 		IssueComment savedComment = issueCommentRepository.save(comment);
+		meterRegistry.counter("comments.added").increment();
 		issueAuditLogRepository.save(createAuditLog(issueId, authorId, "comment_added", null, savedComment.getId()));
 		publishCommentAddedNotifications(orgId, project, issue, savedComment, authorId);
 
