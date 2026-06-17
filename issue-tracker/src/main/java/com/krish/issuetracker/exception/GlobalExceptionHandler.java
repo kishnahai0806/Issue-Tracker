@@ -127,6 +127,13 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(AttachmentNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleAttachmentNotFound(
+			AttachmentNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(UserNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleUserNotFound(
 			UserNotFoundException ex,
@@ -204,6 +211,11 @@ public class GlobalExceptionHandler {
 					"File content does not match declared type",
 					request);
 		};
+	}
+
+	@ExceptionHandler(StorageException.class)
+	public ResponseEntity<ErrorResponse> handleStorageException(HttpServletRequest request) {
+		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Storage operation failed", request);
 	}
 
 	@ExceptionHandler(Exception.class)
