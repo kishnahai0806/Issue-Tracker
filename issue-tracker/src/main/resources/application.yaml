@@ -25,11 +25,6 @@ spring:
       enabled: false
     jdbc:
       initialize-schema: never
-  mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
   servlet:
     multipart:
       max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
@@ -77,6 +72,17 @@ jwt:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+mail:
+  host: ${MAIL_HOST:localhost}
+  port: ${MAIL_PORT:1025}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
+  from-address: ${MAIL_FROM_ADDRESS:noreply@issuetracker.com}
+  from-name: ${MAIL_FROM_NAME:Issue Tracker}
+  thread-pool-core-size: ${MAIL_THREAD_POOL_CORE:2}
+  thread-pool-max-size: ${MAIL_THREAD_POOL_MAX:4}
+  thread-pool-queue-capacity: ${MAIL_THREAD_POOL_QUEUE:100}
+
 storage:
   endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
   access-key: ${STORAGE_ACCESS_KEY:minioadmin}
@@ -84,45 +90,3 @@ storage:
   bucket-name: ${STORAGE_BUCKET_NAME:issue-tracker}
   presigned-url-expiry-minutes: ${STORAGE_PRESIGNED_EXPIRY_MINUTES:60}
   max-file-size-bytes: ${STORAGE_MAX_FILE_SIZE_BYTES:10485760}
-
-app:
-  cors:
-    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
-  security:
-    jwt:
-      secret: ${JWT_SECRET:local-dev-change-me-minimum-32-characters}
-      issuer: ${JWT_ISSUER:issue-tracker-local}
-      audience: ${JWT_AUDIENCE:issue-tracker-api}
-      access-token-expiration-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
-      refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRY_MS:604800000}
-    rate-limiting:
-      auth:
-        capacity: ${AUTH_RATE_LIMIT_CAPACITY:5}
-        refill-tokens: ${AUTH_RATE_LIMIT_REFILL_TOKENS:5}
-        refill-period: ${AUTH_RATE_LIMIT_REFILL_PERIOD:PT1M}
-  storage:
-    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-    bucket: ${MINIO_BUCKET:issue-tracker-local}
-    access-key: ${MINIO_ACCESS_KEY:minio-local-access}
-    secret-key: ${MINIO_SECRET_KEY:minio-local-secret}
-    max-file-size: ${STORAGE_MAX_FILE_SIZE:10MB}
-    allowed-content-types: ${STORAGE_ALLOWED_CONTENT_TYPES:application/pdf,image/png,image/jpeg,text/plain}
-  issues:
-    creation:
-      idempotency:
-        ttl: ${ISSUE_CREATION_IDEMPOTENCY_TTL:PT24H}
-  analytics:
-    batch:
-      schedule: "${ANALYTICS_BATCH_SCHEDULE:0 0 * * * *}"
-
----
-spring:
-  config:
-    activate:
-      on-profile: local
-
-springdoc:
-  api-docs:
-    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
-  swagger-ui:
-    enabled: ${SWAGGER_UI_ENABLED:true}
