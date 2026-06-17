@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <!-- Dev profile: readable console output -->
+  <springProfile name="local,dev">
+    <appender name="CONSOLE"
+      class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>
+          %d{HH:mm:ss.SSS} [%thread] %-5level
+          %logger{36} [%X{requestId}] [%X{userId}]
+          - %msg%n
+        </pattern>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <!-- Default (prod): JSON structured logging -->
+  <springProfile name="!local &amp;&amp; !dev">
+    <appender name="JSON"
+      class="ch.qos.logback.core.ConsoleAppender">
+      <encoder
+        class="net.logstash.logback.encoder.LogstashEncoder">
+        <includeMdcKeyName>requestId</includeMdcKeyName>
+        <includeMdcKeyName>userId</includeMdcKeyName>
+        <includeMdcKeyName>path</includeMdcKeyName>
+        <includeMdcKeyName>method</includeMdcKeyName>
+      </encoder>
+    </appender>
+    <root level="INFO">
+      <appender-ref ref="JSON"/>
+    </root>
+  </springProfile>
+
+</configuration>
