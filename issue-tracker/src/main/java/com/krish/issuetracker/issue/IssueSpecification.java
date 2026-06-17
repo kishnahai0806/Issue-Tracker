@@ -89,8 +89,7 @@ public final class IssueSpecification {
 	}
 
 	public static Specification<Issue> buildFilter(IssueFilterRequest filter) {
-		return Specification
-				.where(belongsToProject(filter.projectId()))
+		return belongsToProject(filter.projectId())
 				.and(isNotDeleted())
 				.and(hasStatus(filter.status()))
 				.and(hasPriority(filter.priority()))
