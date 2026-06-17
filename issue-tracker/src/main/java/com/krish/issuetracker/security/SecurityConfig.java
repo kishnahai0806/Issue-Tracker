@@ -50,6 +50,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
 						.requestMatchers("/api/v1/auth/**").permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						// WebSocket HTTP upgrade — auth handled at STOMP CONNECT level by JwtChannelInterceptor.
+						.requestMatchers("/ws/**").permitAll()
 						// Tomcat re-dispatches sendError() to /error; without this, error responses return wrong status.
 						.requestMatchers("/error").permitAll()
 						// Swagger endpoints are profile-gated by springdoc settings and must remain disabled in production.

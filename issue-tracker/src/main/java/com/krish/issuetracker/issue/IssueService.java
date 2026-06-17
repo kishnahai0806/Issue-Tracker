@@ -35,6 +35,8 @@ import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
+import com.krish.issuetracker.websocket.IssueUpdateEvent;
+import com.krish.issuetracker.websocket.WebSocketEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -55,6 +57,7 @@ public class IssueService {
 	private final IssueAuditLogRepository issueAuditLogRepository;
 	private final ProjectRepository projectRepository;
 	private final IssueNumberGenerator issueNumberGenerator;
+	private final WebSocketEventPublisher eventPublisher;
 
 	public IssueService(
 			IssueRepository issueRepository,
@@ -64,6 +67,7 @@ public class IssueService {
 			IssueAuditLogRepository issueAuditLogRepository,
 			ProjectRepository projectRepository,
 			IssueNumberGenerator issueNumberGenerator,
+			WebSocketEventPublisher eventPublisher,
 			OrganizationMemberPermissionEvaluator permissionEvaluator) {
 		this.issueRepository = issueRepository;
 		this.issueCommentRepository = issueCommentRepository;
@@ -72,6 +76,7 @@ public class IssueService {
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.projectRepository = projectRepository;
 		this.issueNumberGenerator = issueNumberGenerator;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@Transactional
@@ -100,6 +105,11 @@ public class IssueService {
 			Issue savedIssue = issueRepository.save(issue);
 			saveIssueLabels(savedIssue, request.labelIds());
 			saveCreationAuditLog(savedIssue, reporterId);
+			eventPublisher.publishIssueUpdate(new IssueUpdateEvent(
+					savedIssue.getProjectId(),
+					savedIssue.getId(),
+					"CREATED",
+					reporterId));
 
 			log.info("Issue created: {} in project {}", savedIssue.getId(), request.projectId());
 			return toIssueResponse(savedIssue, loadLabelResponses(savedIssue));
@@ -163,12 +173,23 @@ public class IssueService {
 			if (!Objects.equals(issue.getVersion(), request.version())) {
 				throw new OptimisticLockException();
 			}
+			IssueStatus previousStatus = issue.getStatus();
 
 			List<IssueAuditLog> auditLogs = new ArrayList<>();
 			applyIssueUpdates(issue, request, requestingUserId, auditLogs);
 
 			Issue savedIssue = issueRepository.saveAndFlush(issue);
 			issueAuditLogRepository.saveAll(auditLogs);
+			String eventType = request.status() != null
+					&& !Objects.equals(previousStatus, savedIssue.getStatus())
+					&& (savedIssue.getStatus() == IssueStatus.DONE || savedIssue.getStatus() == IssueStatus.CLOSED)
+					? "STATUS_CHANGED"
+					: "UPDATED";
+			eventPublisher.publishIssueUpdate(new IssueUpdateEvent(
+					savedIssue.getProjectId(),
+					savedIssue.getId(),
+					eventType,
+					requestingUserId));
 			return toIssueResponse(savedIssue, loadLabelResponses(savedIssue));
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new OptimisticLockException();
@@ -184,6 +205,11 @@ public class IssueService {
 			issue.setDeletedAt(OffsetDateTime.now());
 			issueRepository.saveAndFlush(issue);
 			issueAuditLogRepository.save(createAuditLog(issue.getId(), requestingUserId, "deleted", null, "true"));
+			eventPublisher.publishIssueUpdate(new IssueUpdateEvent(
+					issue.getProjectId(),
+					issue.getId(),
+					"DELETED",
+					requestingUserId));
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new OptimisticLockException();
 		}
