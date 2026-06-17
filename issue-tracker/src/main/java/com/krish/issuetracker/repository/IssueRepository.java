@@ -44,6 +44,14 @@ public interface IssueRepository extends JpaRepository<Issue, UUID>, JpaSpecific
 			SELECT COUNT(i) FROM Issue i
 			WHERE i.projectId = :projectId
 			AND i.deletedAt IS NULL
+			AND i.status = com.krish.issuetracker.domain.enums.IssueStatus.IN_PROGRESS
+			""")
+	long countInProgressByProjectId(@Param("projectId") UUID projectId);
+
+	@Query("""
+			SELECT COUNT(i) FROM Issue i
+			WHERE i.projectId = :projectId
+			AND i.deletedAt IS NULL
 			AND i.status IN (
 				com.krish.issuetracker.domain.enums.IssueStatus.DONE,
 				com.krish.issuetracker.domain.enums.IssueStatus.CLOSED
