@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(TestcontainersConfiguration.class)
 // Rolls back after each test method so integration tests do not pollute each other.
 @Transactional
-abstract class BaseIntegrationTest {
+public abstract class BaseIntegrationTest {
 
 	@Autowired
 	protected TestRestTemplate restTemplate;
