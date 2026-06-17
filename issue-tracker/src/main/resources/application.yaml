@@ -94,3 +94,8 @@ storage:
 batch:
   analytics:
     cron: ${BATCH_ANALYTICS_CRON:0 0 1 * * *}
+
+cache:
+  analytics:
+    trends-ttl-minutes: ${CACHE_ANALYTICS_TRENDS_TTL:60}
+    burndown-ttl-minutes: ${CACHE_ANALYTICS_BURNDOWN_TTL:60}
