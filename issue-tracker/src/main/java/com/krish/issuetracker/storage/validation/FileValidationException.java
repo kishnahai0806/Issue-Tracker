@@ -2,14 +2,14 @@ package com.krish.issuetracker.storage.validation;
 
 public class FileValidationException extends RuntimeException {
 
-	private final FileTypeValidator.ValidationFailureReason reason;
+	private final ValidationFailureReason reason;
 
-	public FileValidationException(String message, FileTypeValidator.ValidationFailureReason reason) {
+	public FileValidationException(String message, ValidationFailureReason reason) {
 		super(message);
 		this.reason = reason;
 	}
 
-	public Enum<?> getReason() {
+	public ValidationFailureReason getReason() {
 		return reason;
 	}
 }

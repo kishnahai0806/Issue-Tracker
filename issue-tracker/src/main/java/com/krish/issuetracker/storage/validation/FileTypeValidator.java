@@ -83,10 +83,4 @@ public class FileTypeValidator {
 
 		return true;
 	}
-
-	enum ValidationFailureReason {
-		SIZE_EXCEEDED,
-		INVALID_TYPE,
-		MAGIC_BYTE_MISMATCH
-	}
 }
