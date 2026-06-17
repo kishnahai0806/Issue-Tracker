@@ -59,13 +59,16 @@ public interface IssueRepository extends JpaRepository<Issue, UUID>, JpaSpecific
 			""")
 	long countClosedByProjectId(@Param("projectId") UUID projectId);
 
-	@Query("""
-			SELECT AVG((FUNCTION('date_part', 'epoch', i.resolvedAt) - FUNCTION('date_part', 'epoch', i.createdAt)) / 3600.0)
-			FROM Issue i
-			WHERE i.projectId = :projectId
-			AND i.resolvedAt IS NOT NULL
-			AND i.deletedAt IS NULL
-			""")
+	@Query(value = """
+			SELECT AVG(
+			  EXTRACT(EPOCH FROM (resolved_at - created_at))
+			  / 3600.0
+			)
+			FROM issues
+			WHERE project_id = :projectId
+			AND resolved_at IS NOT NULL
+			AND deleted_at IS NULL
+			""", nativeQuery = true)
 	Double avgResolutionHoursByProjectId(@Param("projectId") UUID projectId);
 
 	@Query("""
