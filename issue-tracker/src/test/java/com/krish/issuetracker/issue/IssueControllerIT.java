@@ -8,7 +8,6 @@ import java.util.UUID;
 import com.krish.issuetracker.BaseIntegrationTest;
 import com.krish.issuetracker.auth.dto.AuthResponse;
 import com.krish.issuetracker.auth.dto.LoginRequest;
-import com.krish.issuetracker.auth.dto.RegisterRequest;
 import com.krish.issuetracker.auth.dto.UserResponse;
 import com.krish.issuetracker.domain.enums.IssuePriority;
 import com.krish.issuetracker.domain.enums.IssueStatus;
@@ -24,15 +23,11 @@ import com.krish.issuetracker.project.dto.CreateProjectRequest;
 import com.krish.issuetracker.project.dto.ProjectResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 class IssueControllerIT extends BaseIntegrationTest {
-
-	private static final String PASSWORD = "Password1!";
 
 	@Test
 	void createIssue_shouldReturn201() {
@@ -249,27 +244,8 @@ class IssueControllerIT extends BaseIntegrationTest {
 				List.of());
 	}
 
-	private HttpHeaders authHeaders(String token) {
-		HttpHeaders headers = new HttpHeaders();
-		headers.setBearerAuth(token);
-		headers.setContentType(MediaType.APPLICATION_JSON);
-		return headers;
-	}
-
-	private String uniqueEmail() {
-		return "it_" + UUID.randomUUID() + "@test.com";
-	}
-
 	private String uniqueProjectKey() {
 		return "P" + UUID.randomUUID().toString().replace("-", "").substring(0, 7).toUpperCase();
-	}
-
-	private RegisterRequest registerRequest(String email) {
-		return new RegisterRequest(email, PASSWORD, "Test User");
-	}
-
-	private String authUrl(String path) {
-		return "http://localhost:" + port + "/api/v1/auth" + path;
 	}
 
 	private String organizationUrl(String suffix) {

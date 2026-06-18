@@ -2,23 +2,17 @@ package com.krish.issuetracker.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.UUID;
-
 import com.krish.issuetracker.BaseIntegrationTest;
 import com.krish.issuetracker.auth.dto.AuthResponse;
 import com.krish.issuetracker.auth.dto.LoginRequest;
 import com.krish.issuetracker.auth.dto.RefreshRequest;
-import com.krish.issuetracker.auth.dto.RegisterRequest;
 import com.krish.issuetracker.auth.dto.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 class AuthControllerIT extends BaseIntegrationTest {
-
-	private static final String PASSWORD = "Password1!";
 
 	@Test
 	void register_shouldReturn201WithUserResponse() {
@@ -106,23 +100,13 @@ class AuthControllerIT extends BaseIntegrationTest {
 	@Test
 	void logout_shouldReturn204() {
 		AuthResponse loginResponse = registerAndLogin(uniqueEmail());
-		HttpHeaders headers = new HttpHeaders();
-		headers.setBearerAuth(loginResponse.accessToken());
 
 		ResponseEntity<Void> response = restTemplate.postForEntity(
 				authUrl("/logout"),
-				new HttpEntity<>(new RefreshRequest(loginResponse.refreshToken()), headers),
+				new HttpEntity<>(new RefreshRequest(loginResponse.refreshToken()), authHeaders(loginResponse.accessToken())),
 				Void.class);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-	}
-
-	private String uniqueEmail() {
-		return "it_" + UUID.randomUUID() + "@test.com";
-	}
-
-	private RegisterRequest registerRequest(String email) {
-		return new RegisterRequest(email, PASSWORD, "Test User");
 	}
 
 	private AuthResponse registerAndLogin(String email) {
@@ -132,9 +116,5 @@ class AuthControllerIT extends BaseIntegrationTest {
 				new LoginRequest(email, PASSWORD),
 				AuthResponse.class);
 		return response.getBody();
-	}
-
-	private String authUrl(String path) {
-		return "http://localhost:" + port + "/api/v1/auth" + path;
 	}
 }
