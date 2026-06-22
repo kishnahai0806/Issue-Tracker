@@ -9,4 +9,5 @@
 	<include file="v1.0.0/003-create-audit-analytics-indexes.sql" relativeToChangelogFile="true"/>
 	<include file="v1.0.0/004-schema-corrections.sql" relativeToChangelogFile="true"/>
 	<include file="db/changelog/v1.0.0/005-spring-batch-schema.sql" relativeToChangelogFile="false"/>
+	<include file="db/changelog/v1.0.0/006-fix-avg-resolution-hours-type.sql" relativeToChangelogFile="false"/>
 </databaseChangeLog>

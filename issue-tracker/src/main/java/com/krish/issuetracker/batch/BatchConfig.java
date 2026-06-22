@@ -2,7 +2,6 @@ package com.krish.issuetracker.batch;
 
 import com.krish.issuetracker.domain.entity.AnalyticsSnapshot;
 import com.krish.issuetracker.domain.entity.Project;
-import com.krish.issuetracker.repository.ProjectRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.persistence.EntityManagerFactory;

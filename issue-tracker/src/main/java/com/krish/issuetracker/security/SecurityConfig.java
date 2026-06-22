@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.krish.issuetracker.config.InvalidCorsConfigurationException;
 import com.krish.issuetracker.security.jwt.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -46,6 +47,11 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
+				.exceptionHandling(exception -> exception
+						.authenticationEntryPoint((request, response, authException) ->
+								response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+						.accessDeniedHandler((request, response, accessDeniedException) ->
+								response.sendError(HttpServletResponse.SC_FORBIDDEN)))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
 						.requestMatchers("/api/v1/auth/**").permitAll()
