@@ -24,8 +24,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Table(name = "issues")
@@ -53,18 +52,33 @@ public class Issue {
 	@Column(name = "description")
 	private String description;
 
+	// @Enumerated(STRING) only — @JdbcTypeCode(NAMED_ENUM)
+	// removed because it generates 'VALUE'::JavaClassName
+	// casts that fail on fresh PostgreSQL databases.
+	// PostgreSQL performs implicit string-to-enum coercion
+	// when @Enumerated(STRING) is used, which is correct.
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@ColumnTransformer(read = "status::text", write = "?::issue_status")
 	@Column(name = "status", nullable = false, columnDefinition = "issue_status")
 	private IssueStatus status = IssueStatus.BACKLOG;
 
+	// @Enumerated(STRING) only — @JdbcTypeCode(NAMED_ENUM)
+	// removed because it generates 'VALUE'::JavaClassName
+	// casts that fail on fresh PostgreSQL databases.
+	// PostgreSQL performs implicit string-to-enum coercion
+	// when @Enumerated(STRING) is used, which is correct.
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@ColumnTransformer(read = "priority::text", write = "?::issue_priority")
 	@Column(name = "priority", nullable = false, columnDefinition = "issue_priority")
 	private IssuePriority priority = IssuePriority.MEDIUM;
 
+	// @Enumerated(STRING) only — @JdbcTypeCode(NAMED_ENUM)
+	// removed because it generates 'VALUE'::JavaClassName
+	// casts that fail on fresh PostgreSQL databases.
+	// PostgreSQL performs implicit string-to-enum coercion
+	// when @Enumerated(STRING) is used, which is correct.
 	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
+	@ColumnTransformer(read = "type::text", write = "?::issue_type")
 	@Column(name = "type", nullable = false, columnDefinition = "issue_type")
 	private IssueType type = IssueType.TASK;
 
