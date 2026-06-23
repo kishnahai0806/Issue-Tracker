@@ -15,10 +15,13 @@ import com.krish.issuetracker.domain.entity.IssueLabel;
 import com.krish.issuetracker.domain.entity.IssueLabelId;
 import com.krish.issuetracker.domain.entity.IssueWatcher;
 import com.krish.issuetracker.domain.entity.IssueWatcherId;
+import com.krish.issuetracker.domain.entity.Label;
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.IssueStatus;
+import com.krish.issuetracker.exception.AssigneeNotMemberException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
+import com.krish.issuetracker.exception.LabelNotInProjectException;
 import com.krish.issuetracker.exception.OptimisticLockException;
 import com.krish.issuetracker.exception.ProjectNotFoundException;
 import com.krish.issuetracker.issue.dto.AuditLogResponse;
@@ -37,6 +40,8 @@ import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueLabelRepository;
 import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
+import com.krish.issuetracker.repository.LabelRepository;
+import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
@@ -63,6 +68,8 @@ public class IssueService {
 	private final IssueAuditLogRepository issueAuditLogRepository;
 	private final ProjectRepository projectRepository;
 	private final UserRepository userRepository;
+	private final OrganizationMemberRepository organizationMemberRepository;
+	private final LabelRepository labelRepository;
 	private final IssueNumberGenerator issueNumberGenerator;
 	private final WebSocketEventPublisher eventPublisher;
 	private final NotificationEventPublisher notificationEventPublisher;
@@ -76,6 +83,8 @@ public class IssueService {
 			IssueAuditLogRepository issueAuditLogRepository,
 			ProjectRepository projectRepository,
 			UserRepository userRepository,
+			OrganizationMemberRepository organizationMemberRepository,
+			LabelRepository labelRepository,
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
 			NotificationEventPublisher notificationEventPublisher,
@@ -88,6 +97,8 @@ public class IssueService {
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.projectRepository = projectRepository;
 		this.userRepository = userRepository;
+		this.organizationMemberRepository = organizationMemberRepository;
+		this.labelRepository = labelRepository;
 		this.issueNumberGenerator = issueNumberGenerator;
 		this.eventPublisher = eventPublisher;
 		this.notificationEventPublisher = notificationEventPublisher;
@@ -98,8 +109,9 @@ public class IssueService {
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
 	public IssueResponse createIssue(UUID orgId, UUID projectId, CreateIssueRequest request, UUID reporterId) {
 		try {
-			projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
+			Project project = projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
 					.orElseThrow(() -> new ProjectNotFoundException(projectId));
+			validateAssigneeMembership(project, request.assigneeId());
 
 			int issueNumber = issueNumberGenerator.generateNextIssueNumber(projectId);
 
@@ -186,6 +198,7 @@ public class IssueService {
 		try {
 			Project project = loadProject(orgId, projectId);
 			Issue issue = loadIssue(projectId, issueId);
+			validateAssigneeMembership(project, request.assigneeId());
 			if (!Objects.equals(issue.getVersion(), request.version())) {
 				throw new OptimisticLockException();
 			}
@@ -269,14 +282,41 @@ public class IssueService {
 			return;
 		}
 
-		List<IssueLabel> issueLabels = labelIds.stream()
-				.map(labelId -> {
+		List<Label> labels = loadProjectLabels(issue.getProjectId(), labelIds);
+		List<IssueLabel> issueLabels = labels.stream()
+				.map(label -> {
 					IssueLabel issueLabel = new IssueLabel();
-					issueLabel.setId(new IssueLabelId(issue.getId(), labelId));
+					issueLabel.setId(new IssueLabelId(issue.getId(), label.getId()));
 					return issueLabel;
 				})
 				.toList();
 		issueLabelRepository.saveAll(issueLabels);
+	}
+
+	private void validateAssigneeMembership(Project project, UUID assigneeId) {
+		if (assigneeId == null) {
+			return;
+		}
+
+		boolean isMember = organizationMemberRepository.existsById_OrganizationIdAndId_UserId(
+				project.getOrganizationId(),
+				assigneeId);
+		if (!isMember) {
+			throw new AssigneeNotMemberException();
+		}
+	}
+
+	private List<Label> loadProjectLabels(UUID projectId, List<UUID> labelIds) {
+		List<UUID> distinctLabelIds = labelIds.stream()
+				.distinct()
+				.toList();
+		List<Label> labels = labelRepository.findAllById(distinctLabelIds);
+		boolean allLabelsBelongToProject = labels.size() == distinctLabelIds.size()
+				&& labels.stream().allMatch(label -> projectId.equals(label.getProjectId()));
+		if (!allLabelsBelongToProject) {
+			throw new LabelNotInProjectException();
+		}
+		return labels;
 	}
 
 	private void saveCreationAuditLog(Issue issue, UUID reporterId) {

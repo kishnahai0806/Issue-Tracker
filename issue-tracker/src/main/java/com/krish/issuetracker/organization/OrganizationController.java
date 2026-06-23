@@ -46,8 +46,8 @@ public class OrganizationController {
 	}
 
 	@GetMapping
-	public ResponseEntity<List<OrganizationSummaryResponse>> listOrganizations() {
-		return ResponseEntity.ok(organizationService.listOrganizations());
+	public ResponseEntity<List<OrganizationSummaryResponse>> listOrganizations(Authentication authentication) {
+		return ResponseEntity.ok(organizationService.listOrganizations(getAuthenticatedUserId(authentication)));
 	}
 
 	@GetMapping("/{orgId}")

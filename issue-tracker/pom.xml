@@ -293,9 +293,9 @@
 						<configuration>
 							<rules>
 								<rule>
-									<element>PACKAGE</element>
+									<element>CLASS</element>
 									<includes>
-										<include>**/service/**</include>
+										<include>**/issuetracker/**/*Service.class</include>
 									</includes>
 									<limits>
 										<limit>

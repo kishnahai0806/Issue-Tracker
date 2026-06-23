@@ -11,4 +11,6 @@ public interface OrganizationRepository extends JpaRepository<Organization, UUID
 	boolean existsBySlug(String slug);
 
 	List<Organization> findAllByIsActiveTrue();
+
+	List<Organization> findAllByIdInAndIsActiveTrue(List<UUID> ids);
 }

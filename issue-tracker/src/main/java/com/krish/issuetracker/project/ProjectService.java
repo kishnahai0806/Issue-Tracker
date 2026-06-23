@@ -44,6 +44,7 @@ public class ProjectService {
 		project.setOrganizationId(orgId);
 		project.setName(request.name());
 		project.setKey(request.key());
+		project.setDescription(request.description());
 		project.setCreatedBy(creatorUserId);
 		project.setArchived(false);
 

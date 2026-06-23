@@ -81,8 +81,14 @@ public class OrganizationService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<OrganizationSummaryResponse> listOrganizations() {
-		return organizationRepository.findAllByIsActiveTrue()
+	@PreAuthorize("isAuthenticated()")
+	public List<OrganizationSummaryResponse> listOrganizations(UUID requestingUserId) {
+		List<UUID> organizationIds = organizationMemberRepository.findOrganizationIdsByUserId(requestingUserId);
+		if (organizationIds.isEmpty()) {
+			return List.of();
+		}
+
+		return organizationRepository.findAllByIdInAndIsActiveTrue(organizationIds)
 				.stream()
 				.map(this::toOrganizationSummaryResponse)
 				.toList();

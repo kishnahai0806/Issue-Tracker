@@ -174,6 +174,20 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(AssigneeNotMemberException.class)
+	public ResponseEntity<ErrorResponse> handleAssigneeNotMember(
+			AssigneeNotMemberException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LabelNotInProjectException.class)
+	public ResponseEntity<ErrorResponse> handleLabelNotInProject(
+			LabelNotInProjectException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(IssueNumberGenerationException.class)
 	public ResponseEntity<ErrorResponse> handleIssueNumberGeneration(
 			IssueNumberGenerationException ex,
