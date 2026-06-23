@@ -5,9 +5,9 @@ spring:
   application:
     name: issue-tracker
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/issue_tracker}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5433/issue_tracker}
     username: ${SPRING_DATASOURCE_USERNAME:issue_tracker_local}
-    password: ${SPRING_DATASOURCE_PASSWORD:local-dev-password}
+    password: ${SPRING_DATASOURCE_PASSWORD:local_dev_password}
   jpa:
     open-in-view: false
     hibernate:
