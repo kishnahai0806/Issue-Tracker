@@ -151,7 +151,6 @@ public class AttachmentService {
 				attachment.getFileName(),
 				attachment.getFileSizeBytes(),
 				attachment.getContentType(),
-				attachment.getStorageKey(),
 				attachment.getUploadedBy(),
 				attachment.getCreatedAt());
 	}

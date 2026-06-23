@@ -72,7 +72,7 @@ public class AuthService {
 		return toUserResponse(savedUser);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public AuthResponse login(LoginRequest request) {
 		User user = userRepository.findByEmail(request.email())
 				.orElseThrow(InvalidCredentialsException::new);
@@ -92,7 +92,7 @@ public class AuthService {
 		return response;
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public AuthResponse refresh(RefreshRequest request) {
 		String currentRefreshTokenHash = refreshTokenStore.hashToken(request.refreshToken());
 		UUID userId = refreshTokenStore.findUserIdByTokenHash(currentRefreshTokenHash)
@@ -112,7 +112,7 @@ public class AuthService {
 		return response;
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public void logout(String rawAccessToken, String rawRefreshToken) {
 		String refreshTokenHash = refreshTokenStore.hashToken(rawRefreshToken);
 		Optional<UUID> userId = refreshTokenStore.findUserIdByTokenHash(refreshTokenHash);

@@ -23,7 +23,9 @@ import com.krish.issuetracker.exception.AssigneeNotMemberException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
 import com.krish.issuetracker.exception.LabelNotInProjectException;
 import com.krish.issuetracker.exception.OptimisticLockException;
+import com.krish.issuetracker.exception.ParentIssueNotFoundException;
 import com.krish.issuetracker.exception.ProjectNotFoundException;
+import com.krish.issuetracker.exception.WatcherNotMemberException;
 import com.krish.issuetracker.issue.dto.AuditLogResponse;
 import com.krish.issuetracker.issue.dto.CommentResponse;
 import com.krish.issuetracker.issue.dto.CreateIssueRequest;
@@ -112,6 +114,7 @@ public class IssueService {
 			Project project = projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
 					.orElseThrow(() -> new ProjectNotFoundException(projectId));
 			validateAssigneeMembership(project, request.assigneeId());
+			validateParentIssue(projectId, request.parentIssueId());
 
 			int issueNumber = issueNumberGenerator.generateNextIssueNumber(projectId);
 
@@ -199,6 +202,7 @@ public class IssueService {
 			Project project = loadProject(orgId, projectId);
 			Issue issue = loadIssue(projectId, issueId);
 			validateAssigneeMembership(project, request.assigneeId());
+			validateParentIssue(projectId, request.parentIssueId());
 			if (!Objects.equals(issue.getVersion(), request.version())) {
 				throw new OptimisticLockException();
 			}
@@ -258,8 +262,9 @@ public class IssueService {
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
 	public void addWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId) {
-		verifyProjectAccess(orgId, projectId);
+		Project project = loadProject(orgId, projectId);
 		loadIssue(projectId, issueId);
+		validateWatcherMembership(project, userId);
 		if (issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, userId)) {
 			return;
 		}
@@ -304,6 +309,24 @@ public class IssueService {
 		if (!isMember) {
 			throw new AssigneeNotMemberException();
 		}
+	}
+
+	private void validateWatcherMembership(Project project, UUID userId) {
+		boolean isMember = organizationMemberRepository.existsById_OrganizationIdAndId_UserId(
+				project.getOrganizationId(),
+				userId);
+		if (!isMember) {
+			throw new WatcherNotMemberException();
+		}
+	}
+
+	private void validateParentIssue(UUID projectId, UUID parentIssueId) {
+		if (parentIssueId == null) {
+			return;
+		}
+
+		issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(parentIssueId, projectId)
+				.orElseThrow(ParentIssueNotFoundException::new);
 	}
 
 	private List<Label> loadProjectLabels(UUID projectId, List<UUID> labelIds) {
@@ -435,6 +458,10 @@ public class IssueService {
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "assigneeId", issue.getAssigneeId(), request.assigneeId()));
 			issue.setAssigneeId(request.assigneeId());
 		}
+		if (request.parentIssueId() != null && !Objects.equals(issue.getParentIssueId(), request.parentIssueId())) {
+			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "parentIssueId", issue.getParentIssueId(), request.parentIssueId()));
+			issue.setParentIssueId(request.parentIssueId());
+		}
 		if (request.storyPoints() != null && !Objects.equals(issue.getStoryPoints(), request.storyPoints())) {
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "storyPoints", issue.getStoryPoints(), request.storyPoints()));
 			issue.setStoryPoints(request.storyPoints());
@@ -468,13 +495,22 @@ public class IssueService {
 	}
 
 	private List<LabelResponse> loadLabelResponses(Issue issue) {
-		return issueLabelRepository.findAllByIdIssueId(issue.getId())
+		List<UUID> labelIds = issueLabelRepository.findAllByIdIssueId(issue.getId())
 				.stream()
-				.map(issueLabel -> new LabelResponse(
-						issueLabel.getId().getLabelId(),
-						issue.getProjectId(),
-						null,
-						null))
+				.map(issueLabel -> issueLabel.getId().getLabelId())
+				.toList();
+
+		if (labelIds.isEmpty()) {
+			return List.of();
+		}
+
+		return labelRepository.findAllById(labelIds)
+				.stream()
+				.map(label -> new LabelResponse(
+						label.getId(),
+						label.getProjectId(),
+						label.getName(),
+						label.getColorHex()))
 				.toList();
 	}
 

@@ -135,6 +135,7 @@ class IssueControllerIT extends BaseIntegrationTest {
 				null,
 				null,
 				null,
+				null,
 				currentIssue.version());
 
 		ResponseEntity<IssueResponse> response = restTemplate.exchange(

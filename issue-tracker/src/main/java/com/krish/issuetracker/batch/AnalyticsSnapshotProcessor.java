@@ -10,26 +10,34 @@ import com.krish.issuetracker.domain.entity.AnalyticsSnapshot;
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.repository.IssueRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@StepScope
 @Slf4j
 public class AnalyticsSnapshotProcessor implements ItemProcessor<Project, AnalyticsSnapshot> {
 
 	private final IssueRepository issueRepository;
 	private final ObjectMapper objectMapper;
+	private final LocalDate snapshotDate;
 
-	public AnalyticsSnapshotProcessor(IssueRepository issueRepository, ObjectMapper objectMapper) {
+	public AnalyticsSnapshotProcessor(
+			IssueRepository issueRepository,
+			ObjectMapper objectMapper,
+			@Value("#{jobParameters['date']}") LocalDate snapshotDate) {
 		this.issueRepository = issueRepository;
 		this.objectMapper = objectMapper;
+		this.snapshotDate = snapshotDate;
 	}
 
 	@Override
 	public AnalyticsSnapshot process(Project project) throws Exception {
 		AnalyticsSnapshot snapshot = new AnalyticsSnapshot();
 		snapshot.setProjectId(project.getId());
-		snapshot.setSnapshotDate(LocalDate.now());
+		snapshot.setSnapshotDate(snapshotDate);
 		snapshot.setTotalIssues(toInteger(issueRepository.countByProjectId(project.getId())));
 		snapshot.setOpenIssues(toInteger(issueRepository.countOpenByProjectId(project.getId())));
 		snapshot.setClosedIssues(toInteger(issueRepository.countClosedByProjectId(project.getId())));

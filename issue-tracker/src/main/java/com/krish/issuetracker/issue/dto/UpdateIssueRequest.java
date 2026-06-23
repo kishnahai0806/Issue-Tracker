@@ -25,6 +25,8 @@ public record UpdateIssueRequest(
 
 		UUID assigneeId,
 
+		UUID parentIssueId,
+
 		@Min(0)
 		@Max(100)
 		Integer storyPoints,

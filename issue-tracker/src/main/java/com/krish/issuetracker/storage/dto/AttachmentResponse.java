@@ -9,7 +9,6 @@ public record AttachmentResponse(
 		String fileName,
 		long fileSizeBytes,
 		String contentType,
-		String storageKey,
 		UUID uploadedBy,
 		LocalDateTime createdAt) {
 }

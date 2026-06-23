@@ -188,6 +188,20 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(WatcherNotMemberException.class)
+	public ResponseEntity<ErrorResponse> handleWatcherNotMember(
+			WatcherNotMemberException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(ParentIssueNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleParentIssueNotFound(
+			ParentIssueNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(IssueNumberGenerationException.class)
 	public ResponseEntity<ErrorResponse> handleIssueNumberGeneration(
 			IssueNumberGenerationException ex,
