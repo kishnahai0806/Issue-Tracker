@@ -32,7 +32,7 @@ class IssueControllerIT extends BaseIntegrationTest {
 	@Test
 	void createIssue_shouldReturn201() {
 		TestSetup setup = setupOrgAndProject();
-		CreateIssueRequest request = createIssueRequest(setup.projectId(), "Create issue test", IssueStatus.TODO);
+		CreateIssueRequest request = createIssueRequest("Create issue test", IssueStatus.TODO);
 
 		ResponseEntity<IssueResponse> response = restTemplate.postForEntity(
 				issueUrl(setup.orgId(), setup.projectId(), ""),
@@ -49,7 +49,7 @@ class IssueControllerIT extends BaseIntegrationTest {
 	void createIssue_shouldReturn401WithoutToken() {
 		UUID orgId = UUID.randomUUID();
 		UUID projectId = UUID.randomUUID();
-		CreateIssueRequest request = createIssueRequest(projectId, "Unauthorized issue test", IssueStatus.TODO);
+		CreateIssueRequest request = createIssueRequest("Unauthorized issue test", IssueStatus.TODO);
 
 		ResponseEntity<String> response = restTemplate.postForEntity(
 				issueUrl(orgId, projectId, ""),
@@ -210,7 +210,7 @@ class IssueControllerIT extends BaseIntegrationTest {
 		ResponseEntity<IssueResponse> response = restTemplate.postForEntity(
 				issueUrl(setup.orgId(), setup.projectId(), ""),
 				new HttpEntity<>(
-						createIssueRequest(setup.projectId(), title, status),
+						createIssueRequest(title, status),
 						authHeaders(setup.accessToken())),
 				IssueResponse.class);
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -229,9 +229,8 @@ class IssueControllerIT extends BaseIntegrationTest {
 		return response.getBody();
 	}
 
-	private CreateIssueRequest createIssueRequest(UUID projectId, String title, IssueStatus status) {
+	private CreateIssueRequest createIssueRequest(String title, IssueStatus status) {
 		return new CreateIssueRequest(
-				projectId,
 				title,
 				"Integration test issue",
 				status,

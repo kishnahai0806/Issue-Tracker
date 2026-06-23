@@ -96,15 +96,15 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
-	public IssueResponse createIssue(CreateIssueRequest request, UUID reporterId, UUID orgId) {
+	public IssueResponse createIssue(UUID orgId, UUID projectId, CreateIssueRequest request, UUID reporterId) {
 		try {
-			projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(request.projectId(), orgId)
-					.orElseThrow(() -> new ProjectNotFoundException(request.projectId()));
+			projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
+					.orElseThrow(() -> new ProjectNotFoundException(projectId));
 
-			int issueNumber = issueNumberGenerator.generateNextIssueNumber(request.projectId());
+			int issueNumber = issueNumberGenerator.generateNextIssueNumber(projectId);
 
 			Issue issue = new Issue();
-			issue.setProjectId(request.projectId());
+			issue.setProjectId(projectId);
 			issue.setIssueNumber(issueNumber);
 			issue.setTitle(request.title());
 			issue.setDescription(request.description());
@@ -127,7 +127,7 @@ public class IssueService {
 					"CREATED",
 					reporterId));
 
-			log.info("Issue created: {} in project {}", savedIssue.getId(), request.projectId());
+			log.info("Issue created: {} in project {}", savedIssue.getId(), projectId);
 			return toIssueResponse(savedIssue, loadLabelResponses(savedIssue));
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new OptimisticLockException();

@@ -46,12 +46,11 @@ public class IssueController {
 			@PathVariable UUID projectId,
 			@Valid @RequestBody CreateIssueRequest request,
 			Authentication authentication) {
-		// Prevents a request body projectId from silently overriding the authenticated path projectId.
-		if (!projectId.equals(request.projectId())) {
-			throw new IllegalArgumentException("Path projectId does not match request projectId");
-		}
-
-		IssueResponse response = issueService.createIssue(request, getAuthenticatedUserId(authentication), orgId);
+		IssueResponse response = issueService.createIssue(
+				orgId,
+				projectId,
+				request,
+				getAuthenticatedUserId(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
