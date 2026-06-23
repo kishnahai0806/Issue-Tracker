@@ -155,6 +155,27 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(OrganizationSlugAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleOrganizationSlugAlreadyExists(
+			OrganizationSlugAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LastOrganizationAdminException.class)
+	public ResponseEntity<ErrorResponse> handleLastOrganizationAdmin(
+			LastOrganizationAdminException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(InvalidDateRangeException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidDateRange(
+			InvalidDateRangeException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(AccessDeniedException.class)
 	public ResponseEntity<ErrorResponse> handleBusinessAccessDenied(HttpServletRequest request) {
 		return errorResponse(HttpStatus.FORBIDDEN, "Access denied", request);

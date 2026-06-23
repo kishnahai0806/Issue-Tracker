@@ -46,7 +46,6 @@ import com.krish.issuetracker.repository.LabelRepository;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
-import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import com.krish.issuetracker.websocket.IssueUpdateEvent;
 import com.krish.issuetracker.websocket.WebSocketEventPublisher;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -90,8 +89,7 @@ public class IssueService {
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
 			NotificationEventPublisher notificationEventPublisher,
-			MeterRegistry meterRegistry,
-			OrganizationMemberPermissionEvaluator permissionEvaluator) {
+			MeterRegistry meterRegistry) {
 		this.issueRepository = issueRepository;
 		this.issueCommentRepository = issueCommentRepository;
 		this.issueLabelRepository = issueLabelRepository;

@@ -10,7 +10,9 @@ import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.UserRole;
 import com.krish.issuetracker.exception.MemberAlreadyExistsException;
 import com.krish.issuetracker.exception.MemberNotFoundException;
+import com.krish.issuetracker.exception.LastOrganizationAdminException;
 import com.krish.issuetracker.exception.OrganizationNotFoundException;
+import com.krish.issuetracker.exception.OrganizationSlugAlreadyExistsException;
 import com.krish.issuetracker.exception.UserNotFoundException;
 import com.krish.issuetracker.organization.dto.AddMemberRequest;
 import com.krish.issuetracker.organization.dto.CreateOrganizationRequest;
@@ -54,7 +56,7 @@ public class OrganizationService {
 	@PreAuthorize("isAuthenticated()")
 	public OrganizationResponse createOrganization(CreateOrganizationRequest request, UUID creatorUserId) {
 		if (organizationRepository.existsBySlug(request.slug())) {
-			throw new IllegalStateException("Slug already taken: " + request.slug());
+			throw new OrganizationSlugAlreadyExistsException(request.slug());
 		}
 
 		Organization organization = new Organization();
@@ -188,13 +190,13 @@ public class OrganizationService {
 
 	private void preventRemovingLastAdmin(UUID orgId, OrganizationMember member) {
 		if (member.getRole() == UserRole.ADMIN && adminCount(orgId) == 1) {
-			throw new IllegalStateException("Cannot remove the last admin of an organization");
+			throw new LastOrganizationAdminException("Cannot remove the last admin of an organization");
 		}
 	}
 
 	private void preventDemotingLastAdmin(UUID orgId, OrganizationMember member, UserRole newRole) {
 		if (member.getRole() == UserRole.ADMIN && newRole != UserRole.ADMIN && adminCount(orgId) == 1) {
-			throw new IllegalStateException("Cannot demote the last admin of an organization");
+			throw new LastOrganizationAdminException("Cannot demote the last admin of an organization");
 		}
 	}
 

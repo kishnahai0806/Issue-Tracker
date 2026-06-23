@@ -28,12 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<jjwt.version>0.12.5</jjwt.version>
 		<awssdk.version>2.25.70</awssdk.version>
 		<logstash.version>7.4</logstash.version>
 		<springdoc.version>2.8.17</springdoc.version>
-		<bucket4j.version>8.10.1</bucket4j.version>
 		<shedlock.version>5.16.0</shedlock.version>
 		<dependency-check.version>12.1.0</dependency-check.version>
 		<jacoco.version>0.8.12</jacoco.version>
@@ -122,11 +120,6 @@
 			<artifactId>liquibase-core</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct</artifactId>
-			<version>${mapstruct.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
 			<version>${awssdk.version}</version>
@@ -140,11 +133,6 @@
 			<groupId>net.logstash.logback</groupId>
 			<artifactId>logstash-logback-encoder</artifactId>
 			<version>${logstash.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.bucket4j</groupId>
-			<artifactId>bucket4j-core</artifactId>
-			<version>${bucket4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.javacrumbs.shedlock</groupId>
@@ -224,16 +212,6 @@
 							<artifactId>lombok</artifactId>
 							<version>${lombok.version}</version>
 						</path>
-						<path>
-							<groupId>org.mapstruct</groupId>
-							<artifactId>mapstruct-processor</artifactId>
-							<version>${mapstruct.version}</version>
-						</path>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok-mapstruct-binding</artifactId>
-							<version>0.2.0</version>
-						</path>
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
@@ -295,7 +273,8 @@
 								<rule>
 									<element>CLASS</element>
 									<includes>
-										<include>**/issuetracker/**/*Service.class</include>
+										<include>com.krish.issuetracker.*.*Service</include>
+										<include>com.krish.issuetracker.*.*.*Service</include>
 									</includes>
 									<limits>
 										<limit>
