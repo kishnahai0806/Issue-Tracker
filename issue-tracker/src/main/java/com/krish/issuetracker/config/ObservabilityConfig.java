@@ -1,5 +1,6 @@
 package com.krish.issuetracker.config;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.micrometer.core.instrument.Counter;
@@ -10,6 +11,12 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ObservabilityConfig {
+
+	private static final List<String> AUTH_FAILURE_REASONS = List.of(
+			"BAD_CREDENTIALS",
+			"ACCOUNT_DISABLED",
+			"TOKEN_EXPIRED",
+			"TOKEN_INVALID");
 
 	// === Metric Tag Strategy ===
 	// auth.failures         → tag: reason
@@ -45,9 +52,10 @@ public class ObservabilityConfig {
 			Counter.builder("comments.added")
 					.description("Total number of comments added")
 					.register(registry);
-			Counter.builder("auth.failures")
-					.description("Total authentication failures - tag reason set at increment site")
-					.register(registry);
+			AUTH_FAILURE_REASONS.forEach(reason -> Counter.builder("auth.failures")
+					.description("Total authentication failures by reason")
+					.tag("reason", reason)
+					.register(registry));
 			Counter.builder("emails.sent")
 					.description("Total emails sent successfully")
 					.register(registry);

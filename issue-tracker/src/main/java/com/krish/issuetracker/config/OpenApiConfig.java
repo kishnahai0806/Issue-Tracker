@@ -30,12 +30,3 @@ public class OpenApiConfig {
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
     }
 }
-
-/*{
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4MzA1NDQwNS02NTgyLTQ3OGMtYTcyZC1iOTM2ZGJiMTE4OTUiLCJlbWFpbCI6ImtyaXNoMUB0ZXN0LmNvbSIsImlzcyI6Imlzc3VlLXRyYWNrZXItbG9jYWwiLCJhdWQiOlsiaXNzdWUtdHJhY2tlci1hcGkiXSwiaWF0IjoxNzgyMTc3NzYyLCJleHAiOjE3ODIxNzg2NjJ9.3NKE6EhOyzXAxel-25kUbdMyh0ZZiKZ8zXRzPpurKcI",
-  "refreshToken": "LbZqJO_LmobUm8fB-UciyjgW95RWAejDAkytapq24_4",
-  "tokenType": "Bearer",
-  "expiresIn": 900
-
-  500 for deleting the admin
-}*/

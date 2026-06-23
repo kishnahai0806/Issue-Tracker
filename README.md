@@ -161,7 +161,7 @@ cp .env.example .env
 # Edit .env and fill in your local values:
 # - JWT_SECRET: any 32+ character string for local dev
 # - POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD for PostgreSQL
-# - MINIO_ACCESS_KEY and MINIO_SECRET_KEY for MinIO
+# - STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY for MinIO
 # - GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD for Grafana
 
 # 3. Start all infrastructure
@@ -173,8 +173,7 @@ cd issue-tracker
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local  # Windows
 ```
 
-> Attachment uploads expect the configured MinIO bucket to exist.
-> Create it from the MinIO console before testing upload endpoints.
+> The Docker Compose bootstrap service creates the configured MinIO bucket automatically.
 
 Once running, access the services at:
 
@@ -266,8 +265,8 @@ Full interactive documentation is available at `/swagger-ui.html` when the local
 | `JWT_REFRESH_EXPIRY_MS` | Refresh token lifetime | `604800000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
 | `STORAGE_ENDPOINT` | S3-compatible storage endpoint | `http://localhost:9000` |
-| `STORAGE_ACCESS_KEY` | S3 access key | `minio_local_access` |
-| `STORAGE_SECRET_KEY` | S3 secret key | `minio_local_secret` |
+| `STORAGE_ACCESS_KEY` | S3 access key | `minioadmin` |
+| `STORAGE_SECRET_KEY` | S3 secret key | `minioadmin` |
 | `STORAGE_BUCKET_NAME` | Attachment bucket name | `issue-tracker` |
 | `MAIL_HOST` | SMTP host | `localhost` |
 | `MAIL_PORT` | SMTP port | `1025` |
