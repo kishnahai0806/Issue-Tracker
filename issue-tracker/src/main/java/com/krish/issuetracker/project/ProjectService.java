@@ -31,24 +31,24 @@ public class ProjectService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasPermission(#request.organizationId(), 'ORGANIZATION', 'PROJECT_MANAGER')")
-	public ProjectResponse createProject(CreateProjectRequest request, UUID creatorUserId) {
-		organizationRepository.findById(request.organizationId())
-				.orElseThrow(() -> new OrganizationNotFoundException(request.organizationId()));
+	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'PROJECT_MANAGER')")
+	public ProjectResponse createProject(UUID orgId, CreateProjectRequest request, UUID creatorUserId) {
+		organizationRepository.findById(orgId)
+				.orElseThrow(() -> new OrganizationNotFoundException(orgId));
 
-		if (projectRepository.existsByKeyAndOrganizationId(request.key(), request.organizationId())) {
-			throw new ProjectKeyAlreadyExistsException(request.key(), request.organizationId());
+		if (projectRepository.existsByKeyAndOrganizationId(request.key(), orgId)) {
+			throw new ProjectKeyAlreadyExistsException(request.key(), orgId);
 		}
 
 		Project project = new Project();
-		project.setOrganizationId(request.organizationId());
+		project.setOrganizationId(orgId);
 		project.setName(request.name());
 		project.setKey(request.key());
 		project.setCreatedBy(creatorUserId);
 		project.setArchived(false);
 
 		Project savedProject = projectRepository.save(project);
-		log.info("Project created: {} in org {}", savedProject.getId(), request.organizationId());
+		log.info("Project created: {} in org {}", savedProject.getId(), orgId);
 
 		return toProjectResponse(savedProject);
 	}

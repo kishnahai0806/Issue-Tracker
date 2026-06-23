@@ -36,12 +36,7 @@ public class ProjectController {
 			@PathVariable UUID orgId,
 			@Valid @RequestBody CreateProjectRequest request,
 			Authentication authentication) {
-		// Prevents a request body organizationId from silently overriding the authenticated path orgId.
-		if (!orgId.equals(request.organizationId())) {
-			throw new IllegalArgumentException("Path orgId does not match request organizationId");
-		}
-
-		ProjectResponse response = projectService.createProject(request, getAuthenticatedUserId(authentication));
+		ProjectResponse response = projectService.createProject(orgId, request, getAuthenticatedUserId(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 

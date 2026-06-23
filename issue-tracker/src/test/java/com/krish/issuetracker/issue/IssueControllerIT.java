@@ -196,7 +196,7 @@ class IssueControllerIT extends BaseIntegrationTest {
 		ResponseEntity<ProjectResponse> projectResponse = restTemplate.postForEntity(
 				projectUrl(orgId, ""),
 				new HttpEntity<>(
-						new CreateProjectRequest("Test Project", uniqueProjectKey(), orgId),
+						new CreateProjectRequest("Test Project", uniqueProjectKey(), null),
 						authHeaders(accessToken)),
 				ProjectResponse.class);
 		assertThat(projectResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
