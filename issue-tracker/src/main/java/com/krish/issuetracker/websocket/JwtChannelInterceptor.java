@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.repository.ProjectRepository;
+import com.krish.issuetracker.repository.UserRepository;
+import com.krish.issuetracker.security.TokenBlacklist;
 import com.krish.issuetracker.security.jwt.JwtService;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import org.springframework.messaging.Message;
@@ -27,6 +29,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
 	private static final String AUTHORIZATION_HEADER = "Authorization";
 	private static final String BEARER_PREFIX = "Bearer ";
+	private static final String TOPIC_DESTINATION_PREFIX = "/topic";
 	private static final String PROJECT_TOPIC_PREFIX = "/topic/projects/";
 	private static final String PROJECT_TOPIC_SUFFIX = "/issues";
 	private static final String USER_DESTINATION_PREFIX = "/user/";
@@ -34,16 +37,22 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 	private static final String SUBSCRIBE_ROLE = "REPORTER";
 
 	private final JwtService jwtService;
+	private final TokenBlacklist tokenBlacklist;
+	private final UserRepository userRepository;
 	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
 	private final ProjectRepository projectRepository;
 	private final AtomicInteger wsActiveConnections;
 
 	public JwtChannelInterceptor(
 			JwtService jwtService,
+			TokenBlacklist tokenBlacklist,
+			UserRepository userRepository,
 			OrganizationMemberPermissionEvaluator permissionEvaluator,
 			ProjectRepository projectRepository,
 			AtomicInteger wsActiveConnections) {
 		this.jwtService = jwtService;
+		this.tokenBlacklist = tokenBlacklist;
+		this.userRepository = userRepository;
 		this.permissionEvaluator = permissionEvaluator;
 		this.projectRepository = projectRepository;
 		this.wsActiveConnections = wsActiveConnections;
@@ -62,6 +71,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 		if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
 			handleSubscribe(accessor);
 		}
+		if (StompCommand.SEND.equals(accessor.getCommand())) {
+			handleSend(accessor);
+		}
 		if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
 			wsActiveConnections.updateAndGet(current -> Math.max(0, current - 1));
 		}
@@ -76,8 +88,15 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 		if (!jwtService.validateToken(token)) {
 			throw new MessageDeliveryException("Unauthorized");
 		}
+		if (tokenBlacklist.isBlacklisted(token)) {
+			throw new MessageDeliveryException("Unauthorized");
+		}
 
 		String userId = jwtService.extractUserId(token);
+		if (userRepository.findByIdAndIsActiveTrue(UUID.fromString(userId)).isEmpty()) {
+			throw new MessageDeliveryException("Unauthorized");
+		}
+
 		UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
 				userId,
 				null,
@@ -103,6 +122,13 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
 		if (!hasProjectTopicAccess(authentication, projectId)) {
 			throw new MessageDeliveryException("Access denied to topic: " + destination);
+		}
+	}
+
+	private void handleSend(StompHeaderAccessor accessor) {
+		String destination = accessor.getDestination();
+		if (isBrokerDestination(destination)) {
+			throw new MessageDeliveryException("Clients cannot send directly to broker destination: " + destination);
 		}
 	}
 
@@ -135,6 +161,14 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
 	private boolean isProjectIssueTopic(String destination) {
 		return destination.startsWith(PROJECT_TOPIC_PREFIX) && destination.endsWith(PROJECT_TOPIC_SUFFIX);
+	}
+
+	private boolean isBrokerDestination(String destination) {
+		return StringUtils.hasText(destination)
+				&& (destination.equals(TOPIC_DESTINATION_PREFIX)
+						|| destination.startsWith(TOPIC_DESTINATION_PREFIX + "/")
+						|| destination.equals(USER_DESTINATION_PREFIX.substring(0, USER_DESTINATION_PREFIX.length() - 1))
+						|| destination.startsWith(USER_DESTINATION_PREFIX));
 	}
 
 	private Optional<UUID> extractProjectId(String destination) {

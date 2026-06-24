@@ -119,8 +119,9 @@ public class IssueController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@Valid @RequestBody WatcherRequest request) {
-		issueService.addWatcher(orgId, projectId, issueId, request.userId());
+			@Valid @RequestBody WatcherRequest request,
+			Authentication authentication) {
+		issueService.addWatcher(orgId, projectId, issueId, request.userId(), getAuthenticatedUserId(authentication));
 		return ResponseEntity.noContent().build();
 	}
 
@@ -129,8 +130,9 @@ public class IssueController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@PathVariable UUID userId) {
-		issueService.removeWatcher(orgId, projectId, issueId, userId);
+			@PathVariable UUID userId,
+			Authentication authentication) {
+		issueService.removeWatcher(orgId, projectId, issueId, userId, getAuthenticatedUserId(authentication));
 		return ResponseEntity.noContent().build();
 	}
 

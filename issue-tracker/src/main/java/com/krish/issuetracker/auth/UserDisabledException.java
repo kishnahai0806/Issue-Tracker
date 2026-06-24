@@ -5,6 +5,6 @@ import java.util.UUID;
 public class UserDisabledException extends RuntimeException {
 
 	public UserDisabledException(UUID userId) {
-		super("User account is disabled: " + userId);
+		super("Invalid email or password");
 	}
 }

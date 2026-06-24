@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,6 +23,15 @@ public class RefreshTokenStore {
 	private static final String HASH_ALGORITHM = "SHA-256";
 	private static final String REFRESH_TOKEN_KEY_PREFIX = "refresh:";
 	private static final String USER_REFRESH_TOKENS_KEY_PREFIX = "refresh:user:";
+	private static final RedisScript<String> CONSUME_REFRESH_TOKEN_SCRIPT = new DefaultRedisScript<>("""
+			local userId = redis.call('GET', KEYS[1])
+			if not userId then
+				return nil
+			end
+			redis.call('DEL', KEYS[1])
+			redis.call('SREM', ARGV[2] .. userId, ARGV[1])
+			return userId
+			""", String.class);
 
 	private final StringRedisTemplate redisTemplate;
 	private final SecureRandom secureRandom;
@@ -63,6 +74,18 @@ public class RefreshTokenStore {
 		return Optional.of(UUID.fromString(userId));
 	}
 
+	public Optional<UUID> consumeToken(String tokenHash) {
+		String userId = redisTemplate.execute(
+				CONSUME_REFRESH_TOKEN_SCRIPT,
+				List.of(refreshKey(tokenHash)),
+				tokenHash,
+				USER_REFRESH_TOKENS_KEY_PREFIX);
+		if (userId == null) {
+			return Optional.empty();
+		}
+		return Optional.of(UUID.fromString(userId));
+	}
+
 	public void revokeToken(String tokenHash) {
 		String refreshKey = refreshKey(tokenHash);
 		String userId = redisTemplate.opsForValue().get(refreshKey);
@@ -98,12 +121,5 @@ public class RefreshTokenStore {
 
 	private String userRefreshTokensKey(String userId) {
 		return USER_REFRESH_TOKENS_KEY_PREFIX + userId;
-	}
-
-	private static class TokenHashingException extends IllegalStateException {
-
-		TokenHashingException(String message, Throwable cause) {
-			super(message, cause);
-		}
 	}
 }

@@ -25,6 +25,7 @@ import com.krish.issuetracker.organization.dto.MemberResponse;
 import com.krish.issuetracker.organization.dto.OrganizationResponse;
 import com.krish.issuetracker.organization.dto.OrganizationSummaryResponse;
 import com.krish.issuetracker.organization.dto.UpdateMemberRoleRequest;
+import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.OrganizationRepository;
 import com.krish.issuetracker.repository.UserRepository;
@@ -43,6 +44,9 @@ class OrganizationServiceTest {
 
 	@Mock
 	private OrganizationMemberRepository organizationMemberRepository;
+
+	@Mock
+	private IssueWatcherRepository issueWatcherRepository;
 
 	@Mock
 	private UserRepository userRepository;
@@ -139,6 +143,7 @@ class OrganizationServiceTest {
 
 		organizationService.removeMember(orgId, userId);
 
+		verify(issueWatcherRepository).deleteByOrganizationIdAndUserId(orgId, userId);
 		verify(organizationMemberRepository).delete(member);
 	}
 

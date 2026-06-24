@@ -7,6 +7,7 @@ import com.krish.issuetracker.auth.EmailAlreadyExistsException;
 import com.krish.issuetracker.auth.InvalidCredentialsException;
 import com.krish.issuetracker.auth.InvalidRefreshTokenException;
 import com.krish.issuetracker.auth.UserDisabledException;
+import com.krish.issuetracker.security.session.TokenHashingException;
 import com.krish.issuetracker.storage.validation.FileValidationException;
 import com.krish.issuetracker.storage.validation.ValidationFailureReason;
 import io.micrometer.core.instrument.Counter;
@@ -65,7 +66,7 @@ public class GlobalExceptionHandler {
 			UserDisabledException ex,
 			HttpServletRequest request) {
 		incrementAuthFailure(ACCOUNT_DISABLED);
-		return errorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -274,6 +275,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(StorageException.class)
 	public ResponseEntity<ErrorResponse> handleStorageException(HttpServletRequest request) {
 		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Storage operation failed", request);
+	}
+
+	@ExceptionHandler(TokenHashingException.class)
+	public ResponseEntity<ErrorResponse> handleTokenHashingException(HttpServletRequest request) {
+		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Token processing failed", request);
 	}
 
 	@ExceptionHandler(Exception.class)

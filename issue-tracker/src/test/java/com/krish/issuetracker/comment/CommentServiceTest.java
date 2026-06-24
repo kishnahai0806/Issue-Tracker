@@ -3,6 +3,7 @@ package com.krish.issuetracker.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,7 +13,10 @@ import java.util.UUID;
 
 import com.krish.issuetracker.domain.entity.Issue;
 import com.krish.issuetracker.domain.entity.IssueComment;
+import com.krish.issuetracker.domain.entity.IssueWatcher;
+import com.krish.issuetracker.domain.entity.IssueWatcherId;
 import com.krish.issuetracker.domain.entity.Project;
+import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.exception.AccessDeniedException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
 import com.krish.issuetracker.issue.dto.CommentResponse;
@@ -23,6 +27,7 @@ import com.krish.issuetracker.repository.IssueAuditLogRepository;
 import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
+import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -51,6 +56,9 @@ class CommentServiceTest {
 
 	@Mock
 	private IssueWatcherRepository issueWatcherRepository;
+
+	@Mock
+	private OrganizationMemberRepository organizationMemberRepository;
 
 	@Mock
 	private UserRepository userRepository;
@@ -106,6 +114,39 @@ class CommentServiceTest {
 		assertThatThrownBy(() -> commentService.addComment(
 				orgId, projectId, issueId, new CreateCommentRequest("content"), UUID.randomUUID()))
 				.isInstanceOf(IssueNotFoundException.class);
+	}
+
+	@Test
+	void addComment_shouldNotNotifyWatcher_whenWatcherIsNoLongerOrgMember() {
+		UUID orgId = UUID.randomUUID();
+		UUID projectId = UUID.randomUUID();
+		UUID issueId = UUID.randomUUID();
+		UUID authorId = UUID.randomUUID();
+		UUID watcherId = UUID.randomUUID();
+		Project project = project(projectId, orgId);
+		Issue issue = issue(issueId, projectId);
+		IssueWatcher watcher = new IssueWatcher();
+		watcher.setId(new IssueWatcherId(issueId, watcherId));
+		User watcherUser = new User();
+		watcherUser.setId(watcherId);
+		watcherUser.setEmail("watcher@example.com");
+		watcherUser.setFullName("Watcher Name");
+		when(projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId))
+				.thenReturn(Optional.of(project));
+		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
+				.thenReturn(Optional.of(issue));
+		when(issueCommentRepository.save(any(IssueComment.class))).thenAnswer(invocation -> {
+			IssueComment comment = invocation.getArgument(0);
+			comment.setId(UUID.randomUUID());
+			return comment;
+		});
+		when(issueWatcherRepository.findAllByIdIssueId(issueId)).thenReturn(List.of(watcher));
+		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, watcherId)).thenReturn(false);
+
+		commentService.addComment(orgId, projectId, issueId, new CreateCommentRequest("A new comment"), authorId);
+
+		verify(userRepository, never()).findByIdAndIsActiveTrue(watcherId);
+		verify(notificationEventPublisher, never()).publishEmailNotification(any(), any(), any(), any(), any());
 	}
 
 	@Test

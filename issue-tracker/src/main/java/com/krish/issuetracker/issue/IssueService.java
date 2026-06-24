@@ -19,6 +19,7 @@ import com.krish.issuetracker.domain.entity.Label;
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.IssueStatus;
+import com.krish.issuetracker.exception.AccessDeniedException;
 import com.krish.issuetracker.exception.AssigneeNotMemberException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
 import com.krish.issuetracker.exception.LabelNotInProjectException;
@@ -46,6 +47,7 @@ import com.krish.issuetracker.repository.LabelRepository;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
+import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import com.krish.issuetracker.websocket.IssueUpdateEvent;
 import com.krish.issuetracker.websocket.WebSocketEventPublisher;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -55,12 +57,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
 public class IssueService {
+
+	private static final String ORGANIZATION_TARGET_TYPE = "ORGANIZATION";
+	private static final String WATCHER_MANAGEMENT_ROLE = "DEVELOPER";
 
 	private final IssueRepository issueRepository;
 	private final IssueCommentRepository issueCommentRepository;
@@ -70,6 +76,7 @@ public class IssueService {
 	private final ProjectRepository projectRepository;
 	private final UserRepository userRepository;
 	private final OrganizationMemberRepository organizationMemberRepository;
+	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
 	private final LabelRepository labelRepository;
 	private final IssueNumberGenerator issueNumberGenerator;
 	private final WebSocketEventPublisher eventPublisher;
@@ -85,6 +92,7 @@ public class IssueService {
 			ProjectRepository projectRepository,
 			UserRepository userRepository,
 			OrganizationMemberRepository organizationMemberRepository,
+			OrganizationMemberPermissionEvaluator permissionEvaluator,
 			LabelRepository labelRepository,
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
@@ -98,6 +106,7 @@ public class IssueService {
 		this.projectRepository = projectRepository;
 		this.userRepository = userRepository;
 		this.organizationMemberRepository = organizationMemberRepository;
+		this.permissionEvaluator = permissionEvaluator;
 		this.labelRepository = labelRepository;
 		this.issueNumberGenerator = issueNumberGenerator;
 		this.eventPublisher = eventPublisher;
@@ -259,9 +268,10 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	public void addWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId) {
+	public void addWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId, UUID requestingUserId) {
 		Project project = loadProject(orgId, projectId);
 		loadIssue(projectId, issueId);
+		validateWatcherManagementPermission(orgId, requestingUserId, userId);
 		validateWatcherMembership(project, userId);
 		if (issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, userId)) {
 			return;
@@ -274,9 +284,10 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	public void removeWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId) {
+	public void removeWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId, UUID requestingUserId) {
 		verifyProjectAccess(orgId, projectId);
 		loadIssue(projectId, issueId);
+		validateWatcherManagementPermission(orgId, requestingUserId, userId);
 		issueWatcherRepository.deleteByIdIssueIdAndIdUserId(issueId, userId);
 	}
 
@@ -316,6 +327,28 @@ public class IssueService {
 		if (!isMember) {
 			throw new WatcherNotMemberException();
 		}
+	}
+
+	private void validateWatcherManagementPermission(UUID orgId, UUID requestingUserId, UUID targetUserId) {
+		if (requestingUserId.equals(targetUserId)) {
+			return;
+		}
+
+		UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+				requestingUserId.toString(),
+				null,
+				List.of());
+		if (!permissionEvaluator.hasPermission(
+				authentication,
+				orgId,
+				ORGANIZATION_TARGET_TYPE,
+				WATCHER_MANAGEMENT_ROLE)) {
+			throw new AccessDeniedException();
+		}
+	}
+
+	private boolean isCurrentOrganizationMember(UUID orgId, UUID userId) {
+		return organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId);
 	}
 
 	private void validateParentIssue(UUID projectId, UUID parentIssueId) {
@@ -389,6 +422,7 @@ public class IssueService {
 		issueWatcherRepository.findAllByIdIssueId(issue.getId())
 				.stream()
 				.map(watcher -> watcher.getId().getUserId())
+				.filter(userId -> isCurrentOrganizationMember(orgId, userId))
 				.map(userRepository::findByIdAndIsActiveTrue)
 				.flatMap(java.util.Optional::stream)
 				.forEach(watcher -> notificationEventPublisher.publishEmailNotification(

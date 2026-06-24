@@ -23,6 +23,7 @@ import com.krish.issuetracker.organization.dto.UpdateMemberRoleRequest;
 import com.krish.issuetracker.organization.dto.UpdateOrganizationRequest;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.OrganizationRepository;
+import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import lombok.extern.slf4j.Slf4j;
@@ -38,16 +39,19 @@ public class OrganizationService {
 
 	private final OrganizationRepository organizationRepository;
 	private final OrganizationMemberRepository organizationMemberRepository;
+	private final IssueWatcherRepository issueWatcherRepository;
 	private final UserRepository userRepository;
 	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
 
 	public OrganizationService(
 			OrganizationRepository organizationRepository,
 			OrganizationMemberRepository organizationMemberRepository,
+			IssueWatcherRepository issueWatcherRepository,
 			UserRepository userRepository,
 			OrganizationMemberPermissionEvaluator permissionEvaluator) {
 		this.organizationRepository = organizationRepository;
 		this.organizationMemberRepository = organizationMemberRepository;
+		this.issueWatcherRepository = issueWatcherRepository;
 		this.userRepository = userRepository;
 		this.permissionEvaluator = permissionEvaluator;
 	}
@@ -139,6 +143,7 @@ public class OrganizationService {
 		OrganizationMember member = loadMember(orgId, userId);
 		preventRemovingLastAdmin(orgId, member);
 
+		issueWatcherRepository.deleteByOrganizationIdAndUserId(orgId, userId);
 		organizationMemberRepository.delete(member);
 		permissionEvaluator.evictMembership(orgId, userId); // EVICTION SITE 2
 		log.info("Member removed from org {}: {}", orgId, userId);

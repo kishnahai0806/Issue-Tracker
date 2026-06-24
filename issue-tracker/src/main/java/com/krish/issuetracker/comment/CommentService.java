@@ -22,6 +22,7 @@ import com.krish.issuetracker.repository.IssueAuditLogRepository;
 import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
+import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -39,6 +40,7 @@ public class CommentService {
 	private final IssueRepository issueRepository;
 	private final ProjectRepository projectRepository;
 	private final IssueWatcherRepository issueWatcherRepository;
+	private final OrganizationMemberRepository organizationMemberRepository;
 	private final UserRepository userRepository;
 	private final NotificationEventPublisher notificationEventPublisher;
 	private final MeterRegistry meterRegistry;
@@ -49,6 +51,7 @@ public class CommentService {
 			IssueRepository issueRepository,
 			ProjectRepository projectRepository,
 			IssueWatcherRepository issueWatcherRepository,
+			OrganizationMemberRepository organizationMemberRepository,
 			UserRepository userRepository,
 			NotificationEventPublisher notificationEventPublisher,
 			MeterRegistry meterRegistry) {
@@ -57,6 +60,7 @@ public class CommentService {
 		this.issueRepository = issueRepository;
 		this.projectRepository = projectRepository;
 		this.issueWatcherRepository = issueWatcherRepository;
+		this.organizationMemberRepository = organizationMemberRepository;
 		this.userRepository = userRepository;
 		this.notificationEventPublisher = notificationEventPublisher;
 		this.meterRegistry = meterRegistry;
@@ -185,6 +189,7 @@ public class CommentService {
 				.stream()
 				.map(watcher -> watcher.getId().getUserId())
 				.filter(userId -> !authorId.equals(userId))
+				.filter(userId -> isCurrentOrganizationMember(orgId, userId))
 				.map(userRepository::findByIdAndIsActiveTrue)
 				.flatMap(java.util.Optional::stream)
 				.forEach(watcher -> notificationEventPublisher.publishEmailNotification(
@@ -200,6 +205,10 @@ public class CommentService {
 								"commentAuthor", displayName(authorId),
 								"commentPreview", commentPreview(comment.getContent()),
 								"issueUrl", issueUrl(orgId, project.getId(), issue.getId()))));
+	}
+
+	private boolean isCurrentOrganizationMember(UUID orgId, UUID userId) {
+		return organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId);
 	}
 
 	private String displayName(UUID userId) {

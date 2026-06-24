@@ -3,6 +3,7 @@ package com.krish.issuetracker.issue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,6 +26,7 @@ import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.IssuePriority;
 import com.krish.issuetracker.domain.enums.IssueStatus;
 import com.krish.issuetracker.domain.enums.IssueType;
+import com.krish.issuetracker.exception.AccessDeniedException;
 import com.krish.issuetracker.exception.AssigneeNotMemberException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
 import com.krish.issuetracker.exception.LabelNotInProjectException;
@@ -45,6 +47,7 @@ import com.krish.issuetracker.repository.LabelRepository;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
+import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import com.krish.issuetracker.websocket.WebSocketEventPublisher;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -83,6 +86,9 @@ class IssueServiceTest {
 
 	@Mock
 	private OrganizationMemberRepository organizationMemberRepository;
+
+	@Mock
+	private OrganizationMemberPermissionEvaluator permissionEvaluator;
 
 	@Mock
 	private LabelRepository labelRepository;
@@ -380,6 +386,7 @@ class IssueServiceTest {
 		when(issueRepository.saveAndFlush(any(Issue.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(userRepository.findByIdAndIsActiveTrue(newAssigneeId)).thenReturn(Optional.of(assigneeUser));
 		when(issueWatcherRepository.findAllByIdIssueId(issueId)).thenReturn(List.of(watcher));
+		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, watcherId)).thenReturn(true);
 		when(userRepository.findByIdAndIsActiveTrue(watcherId)).thenReturn(Optional.of(watcherUser));
 
 		IssueResponse response = issueService.updateIssue(orgId, projectId, issueId, request, UUID.randomUUID());
@@ -449,7 +456,7 @@ class IssueServiceTest {
 		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId)).thenReturn(true);
 		when(issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, userId)).thenReturn(false);
 
-		issueService.addWatcher(orgId, projectId, issueId, userId);
+		issueService.addWatcher(orgId, projectId, issueId, userId, userId);
 
 		verify(issueWatcherRepository).save(any(IssueWatcher.class));
 	}
@@ -469,7 +476,7 @@ class IssueServiceTest {
 		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId)).thenReturn(true);
 		when(issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, userId)).thenReturn(true);
 
-		issueService.addWatcher(orgId, projectId, issueId, userId);
+		issueService.addWatcher(orgId, projectId, issueId, userId, userId);
 
 		verify(issueWatcherRepository, never()).save(any(IssueWatcher.class));
 	}
@@ -488,8 +495,53 @@ class IssueServiceTest {
 				.thenReturn(Optional.of(issue));
 		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId)).thenReturn(false);
 
-		assertThatThrownBy(() -> issueService.addWatcher(orgId, projectId, issueId, userId))
+		assertThatThrownBy(() -> issueService.addWatcher(orgId, projectId, issueId, userId, userId))
 				.isInstanceOf(WatcherNotMemberException.class);
+	}
+
+	@Test
+	void addWatcher_shouldThrowAccessDeniedException_whenReporterAddsAnotherUser() {
+		UUID orgId = UUID.randomUUID();
+		UUID projectId = UUID.randomUUID();
+		UUID issueId = UUID.randomUUID();
+		UUID targetUserId = UUID.randomUUID();
+		UUID requestingUserId = UUID.randomUUID();
+		Project project = project(projectId, orgId);
+		Issue issue = issue(issueId, projectId);
+		when(projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId))
+				.thenReturn(Optional.of(project));
+		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
+				.thenReturn(Optional.of(issue));
+		when(permissionEvaluator.hasPermission(any(), eq(orgId), eq("ORGANIZATION"), eq("DEVELOPER")))
+				.thenReturn(false);
+
+		assertThatThrownBy(() -> issueService.addWatcher(orgId, projectId, issueId, targetUserId, requestingUserId))
+				.isInstanceOf(AccessDeniedException.class);
+
+		verify(issueWatcherRepository, never()).save(any(IssueWatcher.class));
+	}
+
+	@Test
+	void addWatcher_shouldAddWatcher_whenElevatedUserAddsAnotherUser() {
+		UUID orgId = UUID.randomUUID();
+		UUID projectId = UUID.randomUUID();
+		UUID issueId = UUID.randomUUID();
+		UUID targetUserId = UUID.randomUUID();
+		UUID requestingUserId = UUID.randomUUID();
+		Project project = project(projectId, orgId);
+		Issue issue = issue(issueId, projectId);
+		when(projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId))
+				.thenReturn(Optional.of(project));
+		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
+				.thenReturn(Optional.of(issue));
+		when(permissionEvaluator.hasPermission(any(), eq(orgId), eq("ORGANIZATION"), eq("DEVELOPER")))
+				.thenReturn(true);
+		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, targetUserId)).thenReturn(true);
+		when(issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, targetUserId)).thenReturn(false);
+
+		issueService.addWatcher(orgId, projectId, issueId, targetUserId, requestingUserId);
+
+		verify(issueWatcherRepository).save(any(IssueWatcher.class));
 	}
 
 	@Test
@@ -505,9 +557,40 @@ class IssueServiceTest {
 		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
 				.thenReturn(Optional.of(issue));
 
-		issueService.removeWatcher(orgId, projectId, issueId, userId);
+		issueService.removeWatcher(orgId, projectId, issueId, userId, userId);
 
 		verify(issueWatcherRepository).deleteByIdIssueIdAndIdUserId(issueId, userId);
+	}
+
+	@Test
+	void updateIssue_shouldNotNotifyWatcher_whenWatcherIsNoLongerOrgMember() {
+		UUID orgId = UUID.randomUUID();
+		UUID projectId = UUID.randomUUID();
+		UUID issueId = UUID.randomUUID();
+		UUID watcherId = UUID.randomUUID();
+		Project project = project(projectId, orgId);
+		Issue issue = issue(issueId, projectId);
+		issue.setStatus(IssueStatus.TODO);
+		issue.setVersion(0L);
+		IssueWatcher watcher = new IssueWatcher();
+		watcher.setId(new IssueWatcherId(issueId, watcherId));
+		when(projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId))
+				.thenReturn(Optional.of(project));
+		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
+				.thenReturn(Optional.of(issue));
+		when(issueRepository.saveAndFlush(any(Issue.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(issueWatcherRepository.findAllByIdIssueId(issueId)).thenReturn(List.of(watcher));
+		when(organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, watcherId)).thenReturn(false);
+
+		issueService.updateIssue(
+				orgId,
+				projectId,
+				issueId,
+				updateIssueRequest(IssueStatus.DONE, 0L),
+				UUID.randomUUID());
+
+		verify(userRepository, never()).findByIdAndIsActiveTrue(watcherId);
+		verify(notificationEventPublisher, never()).publishEmailNotification(any(), any(), any(), any(), any());
 	}
 
 	private Project project(UUID projectId, UUID orgId) {

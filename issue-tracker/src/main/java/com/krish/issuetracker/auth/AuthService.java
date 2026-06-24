@@ -74,11 +74,10 @@ public class AuthService {
 		User user = userRepository.findByEmail(request.email())
 				.orElseThrow(InvalidCredentialsException::new);
 
-		if (!user.isActive()) {
-			throw new UserDisabledException(user.getId());
-		}
-
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+			throw new InvalidCredentialsException();
+		}
+		if (!user.isActive()) {
 			throw new InvalidCredentialsException();
 		}
 
@@ -94,7 +93,7 @@ public class AuthService {
 	@Transactional
 	public AuthResponse refresh(RefreshRequest request) {
 		String currentRefreshTokenHash = refreshTokenStore.hashToken(request.refreshToken());
-		UUID userId = refreshTokenStore.findUserIdByTokenHash(currentRefreshTokenHash)
+		UUID userId = refreshTokenStore.consumeToken(currentRefreshTokenHash)
 				.orElseThrow(InvalidRefreshTokenException::new);
 
 		User user = userRepository.findById(userId)
@@ -104,7 +103,6 @@ public class AuthService {
 			throw new InvalidRefreshTokenException();
 		}
 
-		refreshTokenStore.revokeToken(currentRefreshTokenHash);
 		AuthResponse response = issueTokenPair(user);
 		log.info("Token refreshed: {}", user.getId());
 
