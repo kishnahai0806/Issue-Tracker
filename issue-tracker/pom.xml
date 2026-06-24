@@ -11,20 +11,21 @@
 	<groupId>com.krish</groupId>
 	<artifactId>issue-tracker</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
+	<name>Issue Tracker</name>
+	<description>A production-grade multi-tenant issue tracker built with Spring Boot, PostgreSQL, Redis, and MinIO</description>
+	<url>https://github.com/kishnahai0806/Issue-Tracker</url>
 	<developers>
-		<developer/>
+		<developer>
+			<id>kishnahai0806</id>
+			<name>Krish</name>
+			<url>https://github.com/kishnahai0806</url>
+		</developer>
 	</developers>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/kishnahai0806/Issue-Tracker.git</connection>
+		<developerConnection>scm:git:git@github.com:kishnahai0806/Issue-Tracker.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/kishnahai0806/Issue-Tracker</url>
 	</scm>
 	<properties>
 		<java.version>21</java.version>

@@ -84,7 +84,6 @@ When a user sends a request to Issue Tracker, the Spring Boot API validates the 
 | Storage | AWS SDK S3 2.25.70 + MinIO | Issue attachments |
 | WebSocket | Spring WebSocket + STOMP | Live issue updates |
 | Batch | Spring Batch + ShedLock 5.16.0 | Analytics snapshots |
-| Mapping | MapStruct 1.5.5.Final | DTO mapping |
 | Mail | Spring Mail + Thymeleaf | Notification emails |
 | Metrics | Micrometer + Prometheus | Application metrics |
 | Tracing | OpenTelemetry + Jaeger | Request tracing |

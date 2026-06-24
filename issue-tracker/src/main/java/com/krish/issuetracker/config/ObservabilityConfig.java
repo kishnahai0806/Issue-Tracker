@@ -16,12 +16,13 @@ public class ObservabilityConfig {
 			"BAD_CREDENTIALS",
 			"ACCOUNT_DISABLED",
 			"TOKEN_EXPIRED",
-			"TOKEN_INVALID");
+			"TOKEN_INVALID",
+			"TOKEN_REVOKED");
 
 	// === Metric Tag Strategy ===
 	// auth.failures         → tag: reason
 	//   values: BAD_CREDENTIALS, ACCOUNT_DISABLED,
-	//           TOKEN_EXPIRED, TOKEN_INVALID
+	//           TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_REVOKED
 	// file.upload.validation.failure → tag: reason (already wired)
 	// issues.created        → no tags (low cardinality, context in MDC)
 	// issues.closed         → no tags

@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -29,8 +28,7 @@ public class NotificationService {
 			JavaMailSender javaMailSender,
 			@Qualifier("emailTemplateEngine") SpringTemplateEngine templateEngine,
 			MailProperties mailProperties,
-			MeterRegistry meterRegistry,
-			@Qualifier("emailTaskExecutor") ThreadPoolTaskExecutor emailTaskExecutor) {
+			MeterRegistry meterRegistry) {
 		this.javaMailSender = javaMailSender;
 		this.templateEngine = templateEngine;
 		this.mailProperties = mailProperties;

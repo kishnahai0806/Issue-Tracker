@@ -25,6 +25,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
 
+	private static final String AUTH_FAILURE_METRIC = "auth.failures";
+	private static final String AUTH_FAILURE_REASON_TAG = "reason";
+	private static final String BAD_CREDENTIALS = "BAD_CREDENTIALS";
+	private static final String ACCOUNT_DISABLED = "ACCOUNT_DISABLED";
+	private static final String TOKEN_INVALID = "TOKEN_INVALID";
+
 	private final MeterRegistry meterRegistry;
 
 	public GlobalExceptionHandler(MeterRegistry meterRegistry) {
@@ -42,6 +48,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,
 			HttpServletRequest request) {
+		incrementAuthFailure(BAD_CREDENTIALS);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
@@ -49,6 +56,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidRefreshToken(
 			InvalidRefreshTokenException ex,
 			HttpServletRequest request) {
+		incrementAuthFailure(TOKEN_INVALID);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
@@ -56,6 +64,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleUserDisabled(
 			UserDisabledException ex,
 			HttpServletRequest request) {
+		incrementAuthFailure(ACCOUNT_DISABLED);
 		return errorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
 	}
 
@@ -271,6 +280,10 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex, HttpServletRequest request) {
 		log.error("Unhandled exception for request {}", request.getRequestURI(), ex);
 		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+	}
+
+	private void incrementAuthFailure(String reason) {
+		meterRegistry.counter(AUTH_FAILURE_METRIC, AUTH_FAILURE_REASON_TAG, reason).increment();
 	}
 
 	private ResponseEntity<ErrorResponse> errorResponse(

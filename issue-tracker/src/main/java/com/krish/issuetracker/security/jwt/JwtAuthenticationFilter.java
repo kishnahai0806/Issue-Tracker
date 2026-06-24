@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			return;
 		}
 		if (tokenBlacklist.isBlacklisted(token)) {
-			meterRegistry.counter("auth.failures", "reason", "TOKEN_EXPIRED").increment();
+			meterRegistry.counter("auth.failures", "reason", "TOKEN_REVOKED").increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
