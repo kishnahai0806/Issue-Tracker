@@ -98,7 +98,6 @@ class AuthServiceTest {
 		when(refreshTokenStore.hashToken("raw-refresh")).thenReturn("hashed-refresh");
 		when(jwtProperties.getRefreshTokenExpiryMs()).thenReturn(604800000L);
 		when(jwtProperties.getAccessTokenExpiryMs()).thenReturn(900000L);
-		when(organizationMemberRepository.findById_UserId(user.getId())).thenReturn(List.of());
 
 		AuthResponse response = authService.login(new LoginRequest(EMAIL, PASSWORD));
 

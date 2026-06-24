@@ -10,7 +10,6 @@ import com.krish.issuetracker.auth.dto.RefreshRequest;
 import com.krish.issuetracker.auth.dto.RegisterRequest;
 import com.krish.issuetracker.auth.dto.UserResponse;
 import com.krish.issuetracker.domain.entity.User;
-import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.TokenBlacklist;
 import com.krish.issuetracker.security.jwt.JwtProperties;
@@ -29,7 +28,6 @@ public class AuthService {
 	private static final long MILLIS_PER_SECOND = 1_000L;
 
 	private final UserRepository userRepository;
-	private final OrganizationMemberRepository organizationMemberRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final RefreshTokenStore refreshTokenStore;
@@ -38,14 +36,12 @@ public class AuthService {
 
 	public AuthService(
 			UserRepository userRepository,
-			OrganizationMemberRepository organizationMemberRepository,
 			PasswordEncoder passwordEncoder,
 			JwtService jwtService,
 			RefreshTokenStore refreshTokenStore,
 			TokenBlacklist tokenBlacklist,
 			JwtProperties jwtProperties) {
 		this.userRepository = userRepository;
-		this.organizationMemberRepository = organizationMemberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtService = jwtService;
 		this.refreshTokenStore = refreshTokenStore;
@@ -86,7 +82,6 @@ public class AuthService {
 		}
 
 		AuthResponse response = issueTokenPair(user);
-		organizationMemberRepository.findById_UserId(user.getId());
 		log.info("Login successful: {}", user.getId());
 
 		return response;
