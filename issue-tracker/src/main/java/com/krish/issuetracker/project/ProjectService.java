@@ -74,8 +74,7 @@ public class ProjectService {
 	public ProjectResponse updateProject(
 			UUID orgId,
 			UUID projectId,
-			UpdateProjectRequest request,
-			UUID requestingUserId) {
+			UpdateProjectRequest request) {
 		Project project = loadActiveProject(orgId, projectId);
 
 		if (request.name() != null) {
@@ -87,7 +86,7 @@ public class ProjectService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'PROJECT_MANAGER')")
-	public ProjectResponse archiveProject(UUID orgId, UUID projectId, UUID requestingUserId) {
+	public ProjectResponse archiveProject(UUID orgId, UUID projectId) {
 		Project project = loadActiveProject(orgId, projectId);
 		project.setArchived(true);
 

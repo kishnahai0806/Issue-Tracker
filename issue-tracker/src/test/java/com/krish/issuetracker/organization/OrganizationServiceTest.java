@@ -109,7 +109,7 @@ class OrganizationServiceTest {
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
 		MemberResponse response = organizationService.addMember(
-				orgId, new AddMemberRequest(userId, UserRole.DEVELOPER), UUID.randomUUID());
+				orgId, new AddMemberRequest(userId, UserRole.DEVELOPER));
 
 		assertThat(response.userId()).isEqualTo(userId);
 		assertThat(response.role()).isEqualTo(UserRole.DEVELOPER);
@@ -125,7 +125,7 @@ class OrganizationServiceTest {
 		when(organizationMemberRepository.existsById(memberId)).thenReturn(true);
 
 		assertThatThrownBy(() -> organizationService.addMember(
-				orgId, new AddMemberRequest(userId, UserRole.DEVELOPER), UUID.randomUUID()))
+				orgId, new AddMemberRequest(userId, UserRole.DEVELOPER)))
 				.isInstanceOf(MemberAlreadyExistsException.class);
 	}
 
@@ -137,7 +137,7 @@ class OrganizationServiceTest {
 		when(organizationMemberRepository.findById(new OrganizationMemberId(orgId, userId)))
 				.thenReturn(Optional.of(member));
 
-		organizationService.removeMember(orgId, userId, UUID.randomUUID());
+		organizationService.removeMember(orgId, userId);
 
 		verify(organizationMemberRepository).delete(member);
 	}
@@ -151,7 +151,7 @@ class OrganizationServiceTest {
 				.thenReturn(Optional.of(member));
 		when(organizationMemberRepository.countById_OrganizationIdAndRole(orgId, UserRole.ADMIN)).thenReturn(1L);
 
-		assertThatThrownBy(() -> organizationService.removeMember(orgId, userId, UUID.randomUUID()))
+		assertThatThrownBy(() -> organizationService.removeMember(orgId, userId))
 				.isInstanceOf(LastOrganizationAdminException.class);
 	}
 
@@ -167,7 +167,7 @@ class OrganizationServiceTest {
 		when(userRepository.findById(userId)).thenReturn(Optional.of(user(userId, "member@test.com", "Member Name")));
 
 		MemberResponse response = organizationService.updateMemberRole(
-				orgId, userId, new UpdateMemberRoleRequest(UserRole.PROJECT_MANAGER), UUID.randomUUID());
+				orgId, userId, new UpdateMemberRoleRequest(UserRole.PROJECT_MANAGER));
 
 		assertThat(response.role()).isEqualTo(UserRole.PROJECT_MANAGER);
 	}
@@ -180,7 +180,7 @@ class OrganizationServiceTest {
 				.thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> organizationService.updateMemberRole(
-				orgId, userId, new UpdateMemberRoleRequest(UserRole.PROJECT_MANAGER), UUID.randomUUID()))
+				orgId, userId, new UpdateMemberRoleRequest(UserRole.PROJECT_MANAGER)))
 				.isInstanceOf(MemberNotFoundException.class);
 	}
 

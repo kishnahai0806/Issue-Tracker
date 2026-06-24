@@ -83,13 +83,8 @@ public class IssueController {
 	public ResponseEntity<IssueDetailResponse> getIssue(
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
-			@PathVariable UUID issueId,
-			Authentication authentication) {
-		IssueDetailResponse response = issueService.getIssue(
-				orgId,
-				projectId,
-				issueId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID issueId) {
+		IssueDetailResponse response = issueService.getIssue(orgId, projectId, issueId);
 		return ResponseEntity.ok(response);
 	}
 

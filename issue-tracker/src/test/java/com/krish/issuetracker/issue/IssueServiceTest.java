@@ -254,7 +254,7 @@ class IssueServiceTest {
 		when(issueLabelRepository.findAllByIdIssueId(issueId)).thenReturn(List.of(issueLabel));
 		when(labelRepository.findAllById(List.of(labelId))).thenReturn(List.of(label));
 
-		IssueDetailResponse response = issueService.getIssue(orgId, projectId, issueId, UUID.randomUUID());
+		IssueDetailResponse response = issueService.getIssue(orgId, projectId, issueId);
 
 		assertThat(response.id()).isEqualTo(issueId);
 		assertThat(response.title()).isEqualTo(issue.getTitle());
@@ -273,7 +273,7 @@ class IssueServiceTest {
 		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
 				.thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> issueService.getIssue(orgId, projectId, issueId, UUID.randomUUID()))
+		assertThatThrownBy(() -> issueService.getIssue(orgId, projectId, issueId))
 				.isInstanceOf(IssueNotFoundException.class);
 	}
 

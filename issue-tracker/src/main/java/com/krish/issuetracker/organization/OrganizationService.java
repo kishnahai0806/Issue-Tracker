@@ -100,8 +100,7 @@ public class OrganizationService {
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
 	public OrganizationResponse updateOrganization(
 			UUID orgId,
-			UpdateOrganizationRequest request,
-			UUID requestingUserId) {
+			UpdateOrganizationRequest request) {
 		Organization organization = loadOrganization(orgId);
 
 		if (request.name() != null) {
@@ -114,7 +113,7 @@ public class OrganizationService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
-	public MemberResponse addMember(UUID orgId, AddMemberRequest request, UUID requestingUserId) {
+	public MemberResponse addMember(UUID orgId, AddMemberRequest request) {
 		loadOrganization(orgId);
 		User user = loadUser(request.userId());
 		OrganizationMemberId memberId = new OrganizationMemberId(orgId, request.userId());
@@ -136,7 +135,7 @@ public class OrganizationService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
-	public void removeMember(UUID orgId, UUID userId, UUID requestingUserId) {
+	public void removeMember(UUID orgId, UUID userId) {
 		OrganizationMember member = loadMember(orgId, userId);
 		preventRemovingLastAdmin(orgId, member);
 
@@ -150,8 +149,7 @@ public class OrganizationService {
 	public MemberResponse updateMemberRole(
 			UUID orgId,
 			UUID userId,
-			UpdateMemberRoleRequest request,
-			UUID requestingUserId) {
+			UpdateMemberRoleRequest request) {
 		OrganizationMember member = loadMember(orgId, userId);
 		preventDemotingLastAdmin(orgId, member, request.role());
 

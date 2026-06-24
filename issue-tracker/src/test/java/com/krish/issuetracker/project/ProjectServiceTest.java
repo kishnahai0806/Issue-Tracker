@@ -113,7 +113,7 @@ class ProjectServiceTest {
 		when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		ProjectResponse response = projectService.updateProject(
-				orgId, projectId, new UpdateProjectRequest("Renamed Project"), UUID.randomUUID());
+				orgId, projectId, new UpdateProjectRequest("Renamed Project"));
 
 		assertThat(response.name()).isEqualTo("Renamed Project");
 	}
@@ -127,7 +127,7 @@ class ProjectServiceTest {
 				.thenReturn(Optional.of(project));
 		when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		ProjectResponse response = projectService.archiveProject(orgId, projectId, UUID.randomUUID());
+		ProjectResponse response = projectService.archiveProject(orgId, projectId);
 
 		assertThat(response.isArchived()).isTrue();
 	}

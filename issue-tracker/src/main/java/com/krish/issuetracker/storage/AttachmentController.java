@@ -70,14 +70,8 @@ public class AttachmentController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@PathVariable UUID attachmentId,
-			Authentication authentication) {
-		attachmentService.deleteAttachment(
-				orgId,
-				projectId,
-				issueId,
-				attachmentId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID attachmentId) {
+		attachmentService.deleteAttachment(orgId, projectId, issueId, attachmentId);
 		return ResponseEntity.noContent().build();
 	}
 

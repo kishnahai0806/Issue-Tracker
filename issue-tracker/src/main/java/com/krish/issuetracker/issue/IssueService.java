@@ -149,7 +149,7 @@ public class IssueService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
-	public IssueDetailResponse getIssue(UUID orgId, UUID projectId, UUID issueId, UUID requestingUserId) {
+	public IssueDetailResponse getIssue(UUID orgId, UUID projectId, UUID issueId) {
 		verifyProjectAccess(orgId, projectId);
 		Issue issue = loadIssue(projectId, issueId);
 		List<CommentResponse> comments = issueCommentRepository.findAllByIssueIdOrderByCreatedAtAsc(issueId)

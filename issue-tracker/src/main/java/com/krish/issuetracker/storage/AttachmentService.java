@@ -100,8 +100,7 @@ public class AttachmentService {
 			UUID orgId,
 			UUID projectId,
 			UUID issueId,
-			UUID attachmentId,
-			UUID requestingUserId) {
+			UUID attachmentId) {
 		verifyProjectAccess(orgId, projectId);
 		loadIssue(projectId, issueId);
 		IssueAttachment attachment = loadAttachment(issueId, attachmentId);

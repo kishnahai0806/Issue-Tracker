@@ -174,7 +174,7 @@ class AttachmentServiceTest {
 				.thenReturn(Optional.of(issue(issueId, projectId)));
 		when(issueAttachmentRepository.findByIdAndIssueId(attachmentId, issueId)).thenReturn(Optional.of(attachment));
 
-		attachmentService.deleteAttachment(orgId, projectId, issueId, attachmentId, UUID.randomUUID());
+		attachmentService.deleteAttachment(orgId, projectId, issueId, attachmentId);
 
 		verify(storageService).deleteFile("key/path");
 		verify(issueAttachmentRepository).delete(attachment);
@@ -192,8 +192,7 @@ class AttachmentServiceTest {
 				.thenReturn(Optional.of(issue(issueId, projectId)));
 		when(issueAttachmentRepository.findByIdAndIssueId(attachmentId, issueId)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> attachmentService.deleteAttachment(
-				orgId, projectId, issueId, attachmentId, UUID.randomUUID()))
+		assertThatThrownBy(() -> attachmentService.deleteAttachment(orgId, projectId, issueId, attachmentId))
 				.isInstanceOf(AttachmentNotFoundException.class);
 	}
 

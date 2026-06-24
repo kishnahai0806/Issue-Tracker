@@ -1,6 +1,7 @@
 package com.krish.issuetracker.auth;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -80,6 +81,9 @@ public class AuthService {
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 			throw new InvalidCredentialsException();
 		}
+
+		user.setLastLoginAt(LocalDateTime.now());
+		userRepository.save(user);
 
 		AuthResponse response = issueTokenPair(user);
 		log.info("Login successful: {}", user.getId());

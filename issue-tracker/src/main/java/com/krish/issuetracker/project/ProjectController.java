@@ -56,25 +56,16 @@ public class ProjectController {
 	public ResponseEntity<ProjectResponse> updateProject(
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
-			@Valid @RequestBody UpdateProjectRequest request,
-			Authentication authentication) {
-		ProjectResponse response = projectService.updateProject(
-				orgId,
-				projectId,
-				request,
-				getAuthenticatedUserId(authentication));
+			@Valid @RequestBody UpdateProjectRequest request) {
+		ProjectResponse response = projectService.updateProject(orgId, projectId, request);
 		return ResponseEntity.ok(response);
 	}
 
 	@PostMapping("/{projectId}/archive")
 	public ResponseEntity<ProjectResponse> archiveProject(
 			@PathVariable UUID orgId,
-			@PathVariable UUID projectId,
-			Authentication authentication) {
-		ProjectResponse response = projectService.archiveProject(
-				orgId,
-				projectId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID projectId) {
+		ProjectResponse response = projectService.archiveProject(orgId, projectId);
 		return ResponseEntity.ok(response);
 	}
 
