@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.krish.issuetracker.repository.UserRepository;
+import com.krish.issuetracker.security.AuthFailureReason;
 import com.krish.issuetracker.security.TokenBlacklist;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
@@ -56,20 +57,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private void authenticateToken(String token, HttpServletRequest request) {
 		if (!jwtService.validateToken(token)) {
-			String reason = jwtService.isExpired(token) ? "TOKEN_EXPIRED" : "TOKEN_INVALID";
-			meterRegistry.counter("auth.failures", "reason", reason).increment();
+			AuthFailureReason reason = jwtService.isExpired(token)
+					? AuthFailureReason.TOKEN_EXPIRED
+					: AuthFailureReason.TOKEN_INVALID;
+			meterRegistry.counter(AuthFailureReason.METRIC_NAME, AuthFailureReason.REASON_TAG, reason.name()).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
 		if (tokenBlacklist.isBlacklisted(token)) {
-			meterRegistry.counter("auth.failures", "reason", "TOKEN_REVOKED").increment();
+			meterRegistry.counter(
+					AuthFailureReason.METRIC_NAME,
+					AuthFailureReason.REASON_TAG,
+					AuthFailureReason.TOKEN_REVOKED.name()).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
 
 		String userId = jwtService.extractUserId(token);
 		if (userRepository.findByIdAndIsActiveTrue(UUID.fromString(userId)).isEmpty()) {
-			meterRegistry.counter("auth.failures", "reason", "ACCOUNT_DISABLED").increment();
+			meterRegistry.counter(
+					AuthFailureReason.METRIC_NAME,
+					AuthFailureReason.REASON_TAG,
+					AuthFailureReason.ACCOUNT_DISABLED.name()).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}

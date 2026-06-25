@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 import com.krish.issuetracker.auth.EmailAlreadyExistsException;
 import com.krish.issuetracker.auth.InvalidCredentialsException;
 import com.krish.issuetracker.auth.InvalidRefreshTokenException;
-import com.krish.issuetracker.auth.UserDisabledException;
+import com.krish.issuetracker.security.AuthFailureReason;
 import com.krish.issuetracker.security.session.TokenHashingException;
 import com.krish.issuetracker.storage.validation.FileValidationException;
 import com.krish.issuetracker.storage.validation.ValidationFailureReason;
@@ -26,12 +26,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
 
-	private static final String AUTH_FAILURE_METRIC = "auth.failures";
-	private static final String AUTH_FAILURE_REASON_TAG = "reason";
-	private static final String BAD_CREDENTIALS = "BAD_CREDENTIALS";
-	private static final String ACCOUNT_DISABLED = "ACCOUNT_DISABLED";
-	private static final String TOKEN_INVALID = "TOKEN_INVALID";
-
 	private final MeterRegistry meterRegistry;
 
 	public GlobalExceptionHandler(MeterRegistry meterRegistry) {
@@ -49,7 +43,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,
 			HttpServletRequest request) {
-		incrementAuthFailure(BAD_CREDENTIALS);
+		incrementAuthFailure(AuthFailureReason.BAD_CREDENTIALS);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
@@ -57,15 +51,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidRefreshToken(
 			InvalidRefreshTokenException ex,
 			HttpServletRequest request) {
-		incrementAuthFailure(TOKEN_INVALID);
-		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
-	}
-
-	@ExceptionHandler(UserDisabledException.class)
-	public ResponseEntity<ErrorResponse> handleUserDisabled(
-			UserDisabledException ex,
-			HttpServletRequest request) {
-		incrementAuthFailure(ACCOUNT_DISABLED);
+		incrementAuthFailure(AuthFailureReason.TOKEN_INVALID);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
@@ -288,8 +274,8 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
 	}
 
-	private void incrementAuthFailure(String reason) {
-		meterRegistry.counter(AUTH_FAILURE_METRIC, AUTH_FAILURE_REASON_TAG, reason).increment();
+	private void incrementAuthFailure(AuthFailureReason reason) {
+		meterRegistry.counter(AuthFailureReason.METRIC_NAME, AuthFailureReason.REASON_TAG, reason.name()).increment();
 	}
 
 	private ResponseEntity<ErrorResponse> errorResponse(
