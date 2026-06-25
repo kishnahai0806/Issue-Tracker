@@ -57,7 +57,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
 						.requestMatchers("/api/v1/auth/**").permitAll()
-						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
 						// WebSocket HTTP upgrade — auth handled at STOMP CONNECT level by JwtChannelInterceptor.
 						.requestMatchers("/ws/**").permitAll()
 						// Tomcat re-dispatches sendError() to /error; without this, error responses return wrong status.

@@ -38,7 +38,7 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "rate(issues_created_total[5m])",
+          "expr": "rate(issues_total[5m])",
           "legendFormat": "created",
           "refId": "A"
         }

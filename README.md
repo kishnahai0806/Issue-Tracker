@@ -332,17 +332,22 @@ Both the application and local infrastructure expose metrics, traces, dashboards
 
 ## Screenshots
 
-### Swagger UI - API Documentation
-Interactive API documentation showing auth, organization, project, issue, comment, label, attachment, and analytics endpoints with JWT bearer authentication.
+### Swagger UI — API Documentation
+Issue Tracker API v1 with OAS 3.1, showing organization-controller and project-controller endpoint groups expanded, Authorize button in the top right, and lock icons on all authenticated endpoints.
 
 ![Swagger UI](docs/screenshots/swagger-ui.png)
 
-### Grafana Dashboard - Real-time Metrics
-Live operational dashboard showing issue creation and closure rates, authentication failures, HTTP request rate, WebSocket connections, JVM heap usage, storage latency, and batch duration.
+### Grafana Dashboard — Real-time Metrics
+Live operations dashboard showing Issues Created Rate spike, Auth Failures by Reason with all five reason tags (ACCOUNT_DISABLED, BAD_CREDENTIALS, TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_REVOKED), HTTP Request Rate by Status (200/201/302), and JVM Heap Usage gauge.
 
 ![Grafana Dashboard](docs/screenshots/grafana-dashboard.png)
 
-### Jaeger - Request Tracing
-Request tracing view for spans exported from the Spring Boot application through the OpenTelemetry collector into Jaeger.
+### Jaeger — Trace List
+Request traces from the issue-tracker service showing multiple operations including security filterchain, authorized requests, and business logic endpoints.
 
-![Jaeger Trace Detail](docs/screenshots/jaeger-trace-detail.png)
+![Jaeger Trace List](docs/screenshots/jaeger-trace-list.png)
+
+### Jaeger — Attachment Upload Trace Detail
+Waterfall trace for POST /api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}/attachments showing 269.82ms duration across 6 spans including security filterchain, authorize request, secured request, and authorize method.
+
+![Jaeger Trace Detail](docs/screenshots/jaeger-trace-details.png)
