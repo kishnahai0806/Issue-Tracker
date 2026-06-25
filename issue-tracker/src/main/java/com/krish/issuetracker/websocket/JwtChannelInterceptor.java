@@ -107,22 +107,19 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
 	private void handleSubscribe(StompHeaderAccessor accessor) {
 		String destination = accessor.getDestination();
-		if (!StringUtils.hasText(destination) || destination.startsWith(USER_DESTINATION_PREFIX)) {
+		if (isProjectIssueTopic(destination)) {
+			UUID projectId = extractProjectId(destination)
+					.orElseThrow(() -> new MessageDeliveryException("Access denied to topic: " + destination));
+			Authentication authentication = authentication(accessor.getUser())
+					.orElseThrow(() -> new MessageDeliveryException("Unauthorized"));
+
+			if (!hasProjectTopicAccess(authentication, projectId)) {
+				throw new MessageDeliveryException("Access denied to topic: " + destination);
+			}
 			return;
 		}
 
-		if (!isProjectIssueTopic(destination)) {
-			return;
-		}
-
-		UUID projectId = extractProjectId(destination)
-				.orElseThrow(() -> new MessageDeliveryException("Access denied to topic: " + destination));
-		Authentication authentication = authentication(accessor.getUser())
-				.orElseThrow(() -> new MessageDeliveryException("Unauthorized"));
-
-		if (!hasProjectTopicAccess(authentication, projectId)) {
-			throw new MessageDeliveryException("Access denied to topic: " + destination);
-		}
+		throw new MessageDeliveryException("Access denied to destination: " + destination);
 	}
 
 	private void handleSend(StompHeaderAccessor accessor) {
@@ -160,7 +157,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 	}
 
 	private boolean isProjectIssueTopic(String destination) {
-		return destination.startsWith(PROJECT_TOPIC_PREFIX) && destination.endsWith(PROJECT_TOPIC_SUFFIX);
+		return StringUtils.hasText(destination)
+				&& destination.startsWith(PROJECT_TOPIC_PREFIX)
+				&& destination.endsWith(PROJECT_TOPIC_SUFFIX);
 	}
 
 	private boolean isBrokerDestination(String destination) {

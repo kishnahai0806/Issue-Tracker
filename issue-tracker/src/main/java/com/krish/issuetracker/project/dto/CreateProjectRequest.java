@@ -13,5 +13,7 @@ public record CreateProjectRequest(
 		@Size(min = 2, max = 10)
 		@Pattern(regexp = "^[A-Z0-9]+$", message = "Key must be uppercase alphanumeric")
 		String key,
+
+		@Size(max = 10000)
 		String description) {
 }

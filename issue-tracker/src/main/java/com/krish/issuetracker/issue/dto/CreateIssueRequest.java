@@ -18,6 +18,7 @@ public record CreateIssueRequest(
 		@Size(max = 500)
 		String title,
 
+		@Size(max = 10000)
 		String description,
 
 		@NotNull

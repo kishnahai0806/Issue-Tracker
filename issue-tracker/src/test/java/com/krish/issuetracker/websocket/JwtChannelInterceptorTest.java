@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
@@ -24,6 +25,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 @ExtendWith(MockitoExtension.class)
 class JwtChannelInterceptorTest {
@@ -93,6 +95,50 @@ class JwtChannelInterceptorTest {
 		assertThatThrownBy(() -> interceptor.preSend(connectMessage(token), null))
 				.isInstanceOf(MessageDeliveryException.class);
 		assertThat(activeConnections).hasValue(0);
+	}
+
+	@Test
+	void preSend_shouldAllowSubscribeToAuthorizedProjectIssueTopic() {
+		UUID projectId = UUID.randomUUID();
+		UUID organizationId = UUID.randomUUID();
+		Project project = new Project();
+		project.setId(projectId);
+		project.setOrganizationId(organizationId);
+		UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+				UUID.randomUUID().toString(),
+				null);
+		JwtChannelInterceptor interceptor = interceptor(new AtomicInteger());
+		StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+		accessor.setUser(authentication);
+		accessor.setDestination("/topic/projects/" + projectId + "/issues");
+		Message<?> message = message(accessor);
+		when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+		when(permissionEvaluator.hasPermission(authentication, organizationId, "ORGANIZATION", "REPORTER"))
+				.thenReturn(true);
+
+		assertThat(interceptor.preSend(message, null)).isSameAs(message);
+	}
+
+	@Test
+	void preSend_shouldRejectSubscribeToUnknownTopicDestination() {
+		JwtChannelInterceptor interceptor = interceptor(new AtomicInteger());
+		StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+		accessor.setDestination("/topic/admin");
+
+		assertThatThrownBy(() -> interceptor.preSend(message(accessor), null))
+				.isInstanceOf(MessageDeliveryException.class)
+				.hasMessageContaining("Access denied to destination");
+	}
+
+	@Test
+	void preSend_shouldRejectSubscribeToUserDestinationByDefault() {
+		JwtChannelInterceptor interceptor = interceptor(new AtomicInteger());
+		StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+		accessor.setDestination("/user/queue/notifications");
+
+		assertThatThrownBy(() -> interceptor.preSend(message(accessor), null))
+				.isInstanceOf(MessageDeliveryException.class)
+				.hasMessageContaining("Access denied to destination");
 	}
 
 	@Test
