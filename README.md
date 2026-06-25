@@ -1,6 +1,6 @@
 # Issue Tracker
 
-> A production-grade multi-tenant issue tracker built with Spring Boot, PostgreSQL, Redis, and MinIO
+>A production-grade multi-tenant issue tracker demonstrating distributed systems engineering with Spring Boot — featuring Redis-backed WebSocket fan-out across replicas, atomic refresh token rotation via Lua, Spring Batch analytics with idempotent UPSERT, Bucket4j rate limiting, and full observability through Micrometer, Prometheus, and Jaeger.
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.15-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 
