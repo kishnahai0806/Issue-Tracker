@@ -2,7 +2,7 @@
 
 > A production-grade multi-tenant issue tracker built with Spring Boot, PostgreSQL, Redis, and MinIO
 
-[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.15-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 
 ---
 
@@ -76,7 +76,7 @@ When a user sends a request to Issue Tracker, the Spring Boot API validates the 
 | Category | Technology | Purpose |
 |----------|------------|---------|
 | Language | Java 21 | Application runtime |
-| Framework | Spring Boot 3.5.14 | REST API foundation |
+| Framework | Spring Boot 3.5.15 | REST API foundation |
 | Security | Spring Security 6 + JJWT 0.12.5 | Stateless JWT auth |
 | Database | PostgreSQL 16 | Primary data store |
 | Migrations | Liquibase | Versioned schema changes |
@@ -221,7 +221,7 @@ mvnw.cmd verify      # Windows
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/archive` | PROJECT_MANAGER | Archive a project |
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues` | DEVELOPER | Create an issue |
 | `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues` | REPORTER | List and filter issues |
-| `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | DEVELOPER | Get issue details |
+| `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | REPORTER | Get issue details |
 | `PATCH` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | DEVELOPER | Update an issue |
 | `DELETE` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | PROJECT_MANAGER | Soft delete an issue |
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}/watchers` | REPORTER | Add issue watcher |

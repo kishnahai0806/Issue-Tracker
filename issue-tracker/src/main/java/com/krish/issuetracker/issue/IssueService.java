@@ -157,7 +157,7 @@ public class IssueService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
+	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
 	public IssueDetailResponse getIssue(UUID orgId, UUID projectId, UUID issueId) {
 		verifyProjectAccess(orgId, projectId);
 		Issue issue = loadIssue(projectId, issueId);

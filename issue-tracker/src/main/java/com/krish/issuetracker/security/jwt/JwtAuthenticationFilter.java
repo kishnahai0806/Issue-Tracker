@@ -56,7 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private void authenticateToken(String token, HttpServletRequest request) {
 		if (!jwtService.validateToken(token)) {
-			meterRegistry.counter("auth.failures", "reason", "TOKEN_INVALID").increment();
+			String reason = jwtService.isExpired(token) ? "TOKEN_EXPIRED" : "TOKEN_INVALID";
+			meterRegistry.counter("auth.failures", "reason", reason).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
