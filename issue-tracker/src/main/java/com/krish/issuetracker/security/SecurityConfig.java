@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.krish.issuetracker.config.InvalidCorsConfigurationException;
 import com.krish.issuetracker.security.jwt.JwtAuthenticationFilter;
+import com.krish.issuetracker.security.ratelimit.AuthRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,12 +29,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final AuthRateLimitFilter authRateLimitFilter;
 	private final String allowedOrigins;
 
 	public SecurityConfig(
 			JwtAuthenticationFilter jwtAuthenticationFilter,
+			AuthRateLimitFilter authRateLimitFilter,
 			@Value("${cors.allowed-origins}") String allowedOrigins) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+		this.authRateLimitFilter = authRateLimitFilter;
 		this.allowedOrigins = allowedOrigins;
 	}
 
@@ -62,6 +66,7 @@ public class SecurityConfig {
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterBefore(authRateLimitFilter, JwtAuthenticationFilter.class)
 				.build();
 	}
 

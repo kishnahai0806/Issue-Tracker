@@ -99,3 +99,15 @@ cache:
   analytics:
     trends-ttl-minutes: ${CACHE_ANALYTICS_TRENDS_TTL:60}
     burndown-ttl-minutes: ${CACHE_ANALYTICS_BURNDOWN_TTL:60}
+
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  login:
+    capacity: ${RATE_LIMIT_LOGIN_CAPACITY:5}
+    refill-period: ${RATE_LIMIT_LOGIN_PERIOD:1m}
+  register:
+    capacity: ${RATE_LIMIT_REGISTER_CAPACITY:3}
+    refill-period: ${RATE_LIMIT_REGISTER_PERIOD:1h}
+  refresh:
+    capacity: ${RATE_LIMIT_REFRESH_CAPACITY:10}
+    refill-period: ${RATE_LIMIT_REFRESH_PERIOD:1m}

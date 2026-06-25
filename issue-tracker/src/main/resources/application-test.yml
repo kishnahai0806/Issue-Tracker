@@ -51,3 +51,15 @@ logging:
   level:
     root: WARN
     com.krish.issuetracker: INFO
+
+rate-limit:
+  enabled: true
+  login:
+    capacity: 100000
+    refill-period: 1m
+  register:
+    capacity: 100000
+    refill-period: 1m
+  refresh:
+    capacity: 100000
+    refill-period: 1m
