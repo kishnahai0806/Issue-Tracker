@@ -12,6 +12,7 @@ import com.krish.issuetracker.issue.dto.IssueResponse;
 import com.krish.issuetracker.issue.dto.PagedIssueResponse;
 import com.krish.issuetracker.issue.dto.UpdateIssueRequest;
 import com.krish.issuetracker.issue.dto.WatcherRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -50,7 +51,7 @@ public class IssueController {
 				orgId,
 				projectId,
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -100,7 +101,7 @@ public class IssueController {
 				projectId,
 				issueId,
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.ok(response);
 	}
 
@@ -110,7 +111,7 @@ public class IssueController {
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
 			Authentication authentication) {
-		issueService.deleteIssue(orgId, projectId, issueId, getAuthenticatedUserId(authentication));
+		issueService.deleteIssue(orgId, projectId, issueId, AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
 	}
 
@@ -121,7 +122,7 @@ public class IssueController {
 			@PathVariable UUID issueId,
 			@Valid @RequestBody WatcherRequest request,
 			Authentication authentication) {
-		issueService.addWatcher(orgId, projectId, issueId, request.userId(), getAuthenticatedUserId(authentication));
+		issueService.addWatcher(orgId, projectId, issueId, request.userId(), AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
 	}
 
@@ -132,11 +133,7 @@ public class IssueController {
 			@PathVariable UUID issueId,
 			@PathVariable UUID userId,
 			Authentication authentication) {
-		issueService.removeWatcher(orgId, projectId, issueId, userId, getAuthenticatedUserId(authentication));
+		issueService.removeWatcher(orgId, projectId, issueId, userId, AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
-	}
-
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
 	}
 }

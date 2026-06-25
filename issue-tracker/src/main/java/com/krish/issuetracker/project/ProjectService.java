@@ -80,6 +80,9 @@ public class ProjectService {
 		if (request.name() != null) {
 			project.setName(request.name());
 		}
+		if (request.description() != null) {
+			project.setDescription(request.description());
+		}
 
 		return toProjectResponse(projectRepository.save(project));
 	}
@@ -107,6 +110,7 @@ public class ProjectService {
 				project.getOrganizationId(),
 				project.getName(),
 				project.getKey(),
+				project.getDescription(),
 				project.getCreatedBy(),
 				project.isArchived(),
 				project.getCreatedAt(),

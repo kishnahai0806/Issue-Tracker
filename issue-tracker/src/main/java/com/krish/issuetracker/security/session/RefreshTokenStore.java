@@ -1,8 +1,5 @@
 package com.krish.issuetracker.security.session;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Service;
 public class RefreshTokenStore {
 
 	private static final int REFRESH_TOKEN_BYTES = 32;
-	private static final String HASH_ALGORITHM = "SHA-256";
 	private static final String REFRESH_TOKEN_KEY_PREFIX = "refresh:";
 	private static final String USER_REFRESH_TOKENS_KEY_PREFIX = "refresh:user:";
 	private static final RedisScript<String> CONSUME_REFRESH_TOKEN_SCRIPT = new DefaultRedisScript<>("""
@@ -48,13 +44,7 @@ public class RefreshTokenStore {
 	}
 
 	public String hashToken(String rawToken) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
-			byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-		} catch (NoSuchAlgorithmException ex) {
-			throw new TokenHashingException(HASH_ALGORITHM + " is not available", ex);
-		}
+		return TokenHasher.sha256Base64Url(rawToken);
 	}
 
 	public void storeSession(String tokenHash, UUID userId, Duration ttl) {

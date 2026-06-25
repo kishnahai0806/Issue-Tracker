@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.krish.issuetracker.domain.entity.Issue;
+import com.krish.issuetracker.domain.entity.IssueAuditLog;
 import com.krish.issuetracker.domain.entity.IssueComment;
 import com.krish.issuetracker.domain.entity.IssueWatcher;
 import com.krish.issuetracker.domain.entity.IssueWatcherId;
@@ -34,6 +35,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -171,6 +173,13 @@ class CommentServiceTest {
 
 		assertThat(response.content()).isEqualTo("updated content");
 		assertThat(response.isEdited()).isTrue();
+		ArgumentCaptor<IssueAuditLog> auditLogCaptor = ArgumentCaptor.forClass(IssueAuditLog.class);
+		verify(issueAuditLogRepository).save(auditLogCaptor.capture());
+		assertThat(auditLogCaptor.getValue().getIssueId()).isEqualTo(issueId);
+		assertThat(auditLogCaptor.getValue().getChangedBy()).isEqualTo(authorId);
+		assertThat(auditLogCaptor.getValue().getFieldName()).isEqualTo("comment_updated");
+		assertThat(auditLogCaptor.getValue().getOldValue()).isEqualTo("old content");
+		assertThat(auditLogCaptor.getValue().getNewValue()).isEqualTo("updated content");
 	}
 
 	@Test
@@ -212,6 +221,13 @@ class CommentServiceTest {
 		commentService.deleteComment(orgId, projectId, issueId, commentId, authorId);
 
 		verify(issueCommentRepository).delete(comment);
+		ArgumentCaptor<IssueAuditLog> auditLogCaptor = ArgumentCaptor.forClass(IssueAuditLog.class);
+		verify(issueAuditLogRepository).save(auditLogCaptor.capture());
+		assertThat(auditLogCaptor.getValue().getIssueId()).isEqualTo(issueId);
+		assertThat(auditLogCaptor.getValue().getChangedBy()).isEqualTo(authorId);
+		assertThat(auditLogCaptor.getValue().getFieldName()).isEqualTo("comment_deleted");
+		assertThat(auditLogCaptor.getValue().getOldValue()).isEqualTo(commentId.toString());
+		assertThat(auditLogCaptor.getValue().getNewValue()).isNull();
 	}
 
 	@Test

@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.krish.issuetracker.issue.dto.CommentResponse;
 import com.krish.issuetracker.issue.dto.CreateCommentRequest;
 import com.krish.issuetracker.issue.dto.UpdateCommentRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +44,7 @@ public class CommentController {
 				projectId,
 				issueId,
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -69,7 +70,7 @@ public class CommentController {
 				issueId,
 				commentId,
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.ok(response);
 	}
 
@@ -80,11 +81,7 @@ public class CommentController {
 			@PathVariable UUID issueId,
 			@PathVariable UUID commentId,
 			Authentication authentication) {
-		commentService.deleteComment(orgId, projectId, issueId, commentId, getAuthenticatedUserId(authentication));
+		commentService.deleteComment(orgId, projectId, issueId, commentId, AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
-	}
-
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
 	}
 }

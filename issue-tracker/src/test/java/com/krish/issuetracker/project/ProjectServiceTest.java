@@ -55,6 +55,7 @@ class ProjectServiceTest {
 		assertThat(response).isNotNull();
 		assertThat(response.key()).isEqualTo("PROJ");
 		assertThat(response.organizationId()).isEqualTo(orgId);
+		assertThat(response.description()).isEqualTo("description");
 	}
 
 	@Test
@@ -104,7 +105,7 @@ class ProjectServiceTest {
 	}
 
 	@Test
-	void updateProject_shouldUpdateName_whenProjectExists() {
+	void updateProject_shouldUpdateNameAndDescription_whenProjectExists() {
 		UUID orgId = UUID.randomUUID();
 		UUID projectId = UUID.randomUUID();
 		Project project = project(projectId, orgId, "PROJ");
@@ -113,9 +114,10 @@ class ProjectServiceTest {
 		when(projectRepository.save(any(Project.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		ProjectResponse response = projectService.updateProject(
-				orgId, projectId, new UpdateProjectRequest("Renamed Project"));
+				orgId, projectId, new UpdateProjectRequest("Renamed Project", "Updated description"));
 
 		assertThat(response.name()).isEqualTo("Renamed Project");
+		assertThat(response.description()).isEqualTo("Updated description");
 	}
 
 	@Test

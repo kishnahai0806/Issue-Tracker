@@ -10,6 +10,7 @@ import com.krish.issuetracker.organization.dto.OrganizationResponse;
 import com.krish.issuetracker.organization.dto.OrganizationSummaryResponse;
 import com.krish.issuetracker.organization.dto.UpdateMemberRoleRequest;
 import com.krish.issuetracker.organization.dto.UpdateOrganizationRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,13 +42,13 @@ public class OrganizationController {
 			Authentication authentication) {
 		OrganizationResponse response = organizationService.createOrganization(
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
 	@GetMapping
 	public ResponseEntity<List<OrganizationSummaryResponse>> listOrganizations(Authentication authentication) {
-		return ResponseEntity.ok(organizationService.listOrganizations(getAuthenticatedUserId(authentication)));
+		return ResponseEntity.ok(organizationService.listOrganizations(AuthenticatedUser.id(authentication)));
 	}
 
 	@GetMapping("/{orgId}")
@@ -93,7 +94,4 @@ public class OrganizationController {
 		return ResponseEntity.noContent().build();
 	}
 
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
-	}
 }

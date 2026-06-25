@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -399,8 +400,40 @@ class IssueServiceTest {
 		assertThat(response.assigneeId()).isEqualTo(newAssigneeId);
 		assertThat(response.parentIssueId()).isEqualTo(newParentIssueId);
 		assertThat(response.storyPoints()).isEqualTo(5);
+		assertThat(response.resolvedAt()).isNotNull();
+		assertThat(response.closedAt()).isNotNull();
 		verify(notificationEventPublisher, times(2))
 				.publishEmailNotification(any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void updateIssue_shouldClearLifecycleTimestamps_whenReopenedFromClosed() {
+		UUID orgId = UUID.randomUUID();
+		UUID projectId = UUID.randomUUID();
+		UUID issueId = UUID.randomUUID();
+		Project project = project(projectId, orgId);
+		Issue issue = issue(issueId, projectId);
+		issue.setStatus(IssueStatus.CLOSED);
+		issue.setResolvedAt(LocalDateTime.now().minusDays(2));
+		issue.setClosedAt(LocalDateTime.now().minusDays(1));
+		issue.setVersion(0L);
+		when(projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId))
+				.thenReturn(Optional.of(project));
+		when(issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(issueId, projectId))
+				.thenReturn(Optional.of(issue));
+		when(issueRepository.saveAndFlush(any(Issue.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(issueWatcherRepository.findAllByIdIssueId(issueId)).thenReturn(List.of());
+
+		IssueResponse response = issueService.updateIssue(
+				orgId,
+				projectId,
+				issueId,
+				updateIssueRequest(IssueStatus.TODO, 0L),
+				UUID.randomUUID());
+
+		assertThat(response.status()).isEqualTo(IssueStatus.TODO);
+		assertThat(response.resolvedAt()).isNull();
+		assertThat(response.closedAt()).isNull();
 	}
 
 	@Test

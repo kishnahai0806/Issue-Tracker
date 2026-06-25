@@ -469,13 +469,21 @@ public class IssueService {
 			issue.setDescription(request.description());
 		}
 		if (request.status() != null && !Objects.equals(issue.getStatus(), request.status())) {
+			IssueStatus previousStatus = issue.getStatus();
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "status", issue.getStatus(), request.status()));
 			issue.setStatus(request.status());
-			if (request.status() == IssueStatus.DONE) {
-				issue.setResolvedAt(LocalDateTime.now());
-			}
+			LocalDateTime statusChangedAt = LocalDateTime.now();
 			if (request.status() == IssueStatus.CLOSED) {
-				issue.setClosedAt(LocalDateTime.now());
+				if (previousStatus != IssueStatus.DONE || issue.getResolvedAt() == null) {
+					issue.setResolvedAt(statusChangedAt);
+				}
+				issue.setClosedAt(statusChangedAt);
+			} else if (request.status() == IssueStatus.DONE) {
+				issue.setResolvedAt(statusChangedAt);
+				issue.setClosedAt(null);
+			} else {
+				issue.setResolvedAt(null);
+				issue.setClosedAt(null);
 			}
 		}
 		if (request.priority() != null && !Objects.equals(issue.getPriority(), request.priority())) {

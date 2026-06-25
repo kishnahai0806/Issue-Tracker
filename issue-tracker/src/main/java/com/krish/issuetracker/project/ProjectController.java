@@ -7,6 +7,7 @@ import com.krish.issuetracker.project.dto.CreateProjectRequest;
 import com.krish.issuetracker.project.dto.ProjectResponse;
 import com.krish.issuetracker.project.dto.ProjectSummaryResponse;
 import com.krish.issuetracker.project.dto.UpdateProjectRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +37,7 @@ public class ProjectController {
 			@PathVariable UUID orgId,
 			@Valid @RequestBody CreateProjectRequest request,
 			Authentication authentication) {
-		ProjectResponse response = projectService.createProject(orgId, request, getAuthenticatedUserId(authentication));
+		ProjectResponse response = projectService.createProject(orgId, request, AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -69,7 +70,4 @@ public class ProjectController {
 		return ResponseEntity.ok(response);
 	}
 
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
-	}
 }

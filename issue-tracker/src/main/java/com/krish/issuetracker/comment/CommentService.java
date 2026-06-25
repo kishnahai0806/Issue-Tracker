@@ -105,11 +105,18 @@ public class CommentService {
 		IssueComment comment = loadComment(issueId, commentId);
 		verifyAuthor(comment, requestingUserId);
 
+		String previousContent = comment.getContent();
 		comment.setContent(request.content());
 		comment.setEdited(true);
 		comment.setEditedAt(LocalDateTime.now());
 
 		IssueComment savedComment = issueCommentRepository.save(comment);
+		issueAuditLogRepository.save(createAuditLog(
+				issueId,
+				requestingUserId,
+				"comment_updated",
+				previousContent,
+				savedComment.getContent()));
 		log.info("Comment updated: {}", commentId);
 		return toCommentResponse(savedComment);
 	}
@@ -123,6 +130,7 @@ public class CommentService {
 		verifyAuthor(comment, requestingUserId);
 
 		issueCommentRepository.delete(comment);
+		issueAuditLogRepository.save(createAuditLog(issueId, requestingUserId, "comment_deleted", commentId, null));
 		log.info("Comment deleted: {}", commentId);
 	}
 

@@ -8,6 +8,7 @@ public record ProjectResponse(
 		UUID organizationId,
 		String name,
 		String key,
+		String description,
 		UUID createdBy,
 		boolean isArchived,
 		LocalDateTime createdAt,
