@@ -6,7 +6,8 @@ import java.util.stream.Collectors;
 import com.krish.issuetracker.auth.EmailAlreadyExistsException;
 import com.krish.issuetracker.auth.InvalidCredentialsException;
 import com.krish.issuetracker.auth.InvalidRefreshTokenException;
-import com.krish.issuetracker.auth.UserDisabledException;
+import com.krish.issuetracker.security.AuthFailureReason;
+import com.krish.issuetracker.security.session.TokenHashingException;
 import com.krish.issuetracker.storage.validation.FileValidationException;
 import com.krish.issuetracker.storage.validation.ValidationFailureReason;
 import io.micrometer.core.instrument.Counter;
@@ -42,6 +43,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidCredentials(
 			InvalidCredentialsException ex,
 			HttpServletRequest request) {
+		incrementAuthFailure(AuthFailureReason.BAD_CREDENTIALS);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
 	}
 
@@ -49,14 +51,8 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleInvalidRefreshToken(
 			InvalidRefreshTokenException ex,
 			HttpServletRequest request) {
+		incrementAuthFailure(AuthFailureReason.TOKEN_INVALID);
 		return errorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
-	}
-
-	@ExceptionHandler(UserDisabledException.class)
-	public ResponseEntity<ErrorResponse> handleUserDisabled(
-			UserDisabledException ex,
-			HttpServletRequest request) {
-		return errorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
@@ -155,6 +151,27 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(OrganizationSlugAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleOrganizationSlugAlreadyExists(
+			OrganizationSlugAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LastOrganizationAdminException.class)
+	public ResponseEntity<ErrorResponse> handleLastOrganizationAdmin(
+			LastOrganizationAdminException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(InvalidDateRangeException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidDateRange(
+			InvalidDateRangeException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(AccessDeniedException.class)
 	public ResponseEntity<ErrorResponse> handleBusinessAccessDenied(HttpServletRequest request) {
 		return errorResponse(HttpStatus.FORBIDDEN, "Access denied", request);
@@ -172,6 +189,34 @@ public class GlobalExceptionHandler {
 			LabelAlreadyExistsException ex,
 			HttpServletRequest request) {
 		return errorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(AssigneeNotMemberException.class)
+	public ResponseEntity<ErrorResponse> handleAssigneeNotMember(
+			AssigneeNotMemberException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(LabelNotInProjectException.class)
+	public ResponseEntity<ErrorResponse> handleLabelNotInProject(
+			LabelNotInProjectException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(WatcherNotMemberException.class)
+	public ResponseEntity<ErrorResponse> handleWatcherNotMember(
+			WatcherNotMemberException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(ParentIssueNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleParentIssueNotFound(
+			ParentIssueNotFoundException ex,
+			HttpServletRequest request) {
+		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
 	}
 
 	@ExceptionHandler(IssueNumberGenerationException.class)
@@ -218,10 +263,19 @@ public class GlobalExceptionHandler {
 		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Storage operation failed", request);
 	}
 
+	@ExceptionHandler(TokenHashingException.class)
+	public ResponseEntity<ErrorResponse> handleTokenHashingException(HttpServletRequest request) {
+		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Token processing failed", request);
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex, HttpServletRequest request) {
 		log.error("Unhandled exception for request {}", request.getRequestURI(), ex);
 		return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+	}
+
+	private void incrementAuthFailure(AuthFailureReason reason) {
+		meterRegistry.counter(AuthFailureReason.METRIC_NAME, AuthFailureReason.REASON_TAG, reason.name()).increment();
 	}
 
 	private ResponseEntity<ErrorResponse> errorResponse(

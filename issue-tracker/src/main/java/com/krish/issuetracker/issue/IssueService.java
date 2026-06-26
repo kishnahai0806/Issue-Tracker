@@ -15,12 +15,18 @@ import com.krish.issuetracker.domain.entity.IssueLabel;
 import com.krish.issuetracker.domain.entity.IssueLabelId;
 import com.krish.issuetracker.domain.entity.IssueWatcher;
 import com.krish.issuetracker.domain.entity.IssueWatcherId;
+import com.krish.issuetracker.domain.entity.Label;
 import com.krish.issuetracker.domain.entity.Project;
 import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.IssueStatus;
+import com.krish.issuetracker.exception.AccessDeniedException;
+import com.krish.issuetracker.exception.AssigneeNotMemberException;
 import com.krish.issuetracker.exception.IssueNotFoundException;
+import com.krish.issuetracker.exception.LabelNotInProjectException;
 import com.krish.issuetracker.exception.OptimisticLockException;
+import com.krish.issuetracker.exception.ParentIssueNotFoundException;
 import com.krish.issuetracker.exception.ProjectNotFoundException;
+import com.krish.issuetracker.exception.WatcherNotMemberException;
 import com.krish.issuetracker.issue.dto.AuditLogResponse;
 import com.krish.issuetracker.issue.dto.CommentResponse;
 import com.krish.issuetracker.issue.dto.CreateIssueRequest;
@@ -37,6 +43,8 @@ import com.krish.issuetracker.repository.IssueCommentRepository;
 import com.krish.issuetracker.repository.IssueLabelRepository;
 import com.krish.issuetracker.repository.IssueRepository;
 import com.krish.issuetracker.repository.IssueWatcherRepository;
+import com.krish.issuetracker.repository.LabelRepository;
+import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.ProjectRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
@@ -49,12 +57,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
 public class IssueService {
+
+	private static final String ORGANIZATION_TARGET_TYPE = "ORGANIZATION";
+	private static final String WATCHER_MANAGEMENT_ROLE = "DEVELOPER";
 
 	private final IssueRepository issueRepository;
 	private final IssueCommentRepository issueCommentRepository;
@@ -63,6 +75,9 @@ public class IssueService {
 	private final IssueAuditLogRepository issueAuditLogRepository;
 	private final ProjectRepository projectRepository;
 	private final UserRepository userRepository;
+	private final OrganizationMemberRepository organizationMemberRepository;
+	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
+	private final LabelRepository labelRepository;
 	private final IssueNumberGenerator issueNumberGenerator;
 	private final WebSocketEventPublisher eventPublisher;
 	private final NotificationEventPublisher notificationEventPublisher;
@@ -76,11 +91,13 @@ public class IssueService {
 			IssueAuditLogRepository issueAuditLogRepository,
 			ProjectRepository projectRepository,
 			UserRepository userRepository,
+			OrganizationMemberRepository organizationMemberRepository,
+			OrganizationMemberPermissionEvaluator permissionEvaluator,
+			LabelRepository labelRepository,
 			IssueNumberGenerator issueNumberGenerator,
 			WebSocketEventPublisher eventPublisher,
 			NotificationEventPublisher notificationEventPublisher,
-			MeterRegistry meterRegistry,
-			OrganizationMemberPermissionEvaluator permissionEvaluator) {
+			MeterRegistry meterRegistry) {
 		this.issueRepository = issueRepository;
 		this.issueCommentRepository = issueCommentRepository;
 		this.issueLabelRepository = issueLabelRepository;
@@ -88,6 +105,9 @@ public class IssueService {
 		this.issueAuditLogRepository = issueAuditLogRepository;
 		this.projectRepository = projectRepository;
 		this.userRepository = userRepository;
+		this.organizationMemberRepository = organizationMemberRepository;
+		this.permissionEvaluator = permissionEvaluator;
+		this.labelRepository = labelRepository;
 		this.issueNumberGenerator = issueNumberGenerator;
 		this.eventPublisher = eventPublisher;
 		this.notificationEventPublisher = notificationEventPublisher;
@@ -96,15 +116,17 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
-	public IssueResponse createIssue(CreateIssueRequest request, UUID reporterId, UUID orgId) {
+	public IssueResponse createIssue(UUID orgId, UUID projectId, CreateIssueRequest request, UUID reporterId) {
 		try {
-			projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(request.projectId(), orgId)
-					.orElseThrow(() -> new ProjectNotFoundException(request.projectId()));
+			Project project = projectRepository.findByIdAndOrganizationIdAndIsArchivedFalse(projectId, orgId)
+					.orElseThrow(() -> new ProjectNotFoundException(projectId));
+			validateAssigneeMembership(project, request.assigneeId());
+			validateParentIssue(projectId, request.parentIssueId());
 
-			int issueNumber = issueNumberGenerator.generateNextIssueNumber(request.projectId());
+			int issueNumber = issueNumberGenerator.generateNextIssueNumber(projectId);
 
 			Issue issue = new Issue();
-			issue.setProjectId(request.projectId());
+			issue.setProjectId(projectId);
 			issue.setIssueNumber(issueNumber);
 			issue.setTitle(request.title());
 			issue.setDescription(request.description());
@@ -127,7 +149,7 @@ public class IssueService {
 					"CREATED",
 					reporterId));
 
-			log.info("Issue created: {} in project {}", savedIssue.getId(), request.projectId());
+			log.info("Issue created: {} in project {}", savedIssue.getId(), projectId);
 			return toIssueResponse(savedIssue, loadLabelResponses(savedIssue));
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new OptimisticLockException();
@@ -135,8 +157,8 @@ public class IssueService {
 	}
 
 	@Transactional(readOnly = true)
-	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'DEVELOPER')")
-	public IssueDetailResponse getIssue(UUID orgId, UUID projectId, UUID issueId, UUID requestingUserId) {
+	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
+	public IssueDetailResponse getIssue(UUID orgId, UUID projectId, UUID issueId) {
 		verifyProjectAccess(orgId, projectId);
 		Issue issue = loadIssue(projectId, issueId);
 		List<CommentResponse> comments = issueCommentRepository.findAllByIssueIdOrderByCreatedAtAsc(issueId)
@@ -186,6 +208,8 @@ public class IssueService {
 		try {
 			Project project = loadProject(orgId, projectId);
 			Issue issue = loadIssue(projectId, issueId);
+			validateAssigneeMembership(project, request.assigneeId());
+			validateParentIssue(projectId, request.parentIssueId());
 			if (!Objects.equals(issue.getVersion(), request.version())) {
 				throw new OptimisticLockException();
 			}
@@ -244,9 +268,11 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	public void addWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId) {
-		verifyProjectAccess(orgId, projectId);
+	public void addWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId, UUID requestingUserId) {
+		Project project = loadProject(orgId, projectId);
 		loadIssue(projectId, issueId);
+		validateWatcherManagementPermission(orgId, requestingUserId, userId);
+		validateWatcherMembership(project, userId);
 		if (issueWatcherRepository.existsByIdIssueIdAndIdUserId(issueId, userId)) {
 			return;
 		}
@@ -258,9 +284,10 @@ public class IssueService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	public void removeWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId) {
+	public void removeWatcher(UUID orgId, UUID projectId, UUID issueId, UUID userId, UUID requestingUserId) {
 		verifyProjectAccess(orgId, projectId);
 		loadIssue(projectId, issueId);
+		validateWatcherManagementPermission(orgId, requestingUserId, userId);
 		issueWatcherRepository.deleteByIdIssueIdAndIdUserId(issueId, userId);
 	}
 
@@ -269,14 +296,81 @@ public class IssueService {
 			return;
 		}
 
-		List<IssueLabel> issueLabels = labelIds.stream()
-				.map(labelId -> {
+		List<Label> labels = loadProjectLabels(issue.getProjectId(), labelIds);
+		List<IssueLabel> issueLabels = labels.stream()
+				.map(label -> {
 					IssueLabel issueLabel = new IssueLabel();
-					issueLabel.setId(new IssueLabelId(issue.getId(), labelId));
+					issueLabel.setId(new IssueLabelId(issue.getId(), label.getId()));
 					return issueLabel;
 				})
 				.toList();
 		issueLabelRepository.saveAll(issueLabels);
+	}
+
+	private void validateAssigneeMembership(Project project, UUID assigneeId) {
+		if (assigneeId == null) {
+			return;
+		}
+
+		boolean isMember = organizationMemberRepository.existsById_OrganizationIdAndId_UserId(
+				project.getOrganizationId(),
+				assigneeId);
+		if (!isMember) {
+			throw new AssigneeNotMemberException();
+		}
+	}
+
+	private void validateWatcherMembership(Project project, UUID userId) {
+		boolean isMember = organizationMemberRepository.existsById_OrganizationIdAndId_UserId(
+				project.getOrganizationId(),
+				userId);
+		if (!isMember) {
+			throw new WatcherNotMemberException();
+		}
+	}
+
+	private void validateWatcherManagementPermission(UUID orgId, UUID requestingUserId, UUID targetUserId) {
+		if (requestingUserId.equals(targetUserId)) {
+			return;
+		}
+
+		UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+				requestingUserId.toString(),
+				null,
+				List.of());
+		if (!permissionEvaluator.hasPermission(
+				authentication,
+				orgId,
+				ORGANIZATION_TARGET_TYPE,
+				WATCHER_MANAGEMENT_ROLE)) {
+			throw new AccessDeniedException();
+		}
+	}
+
+	private boolean isCurrentOrganizationMember(UUID orgId, UUID userId) {
+		return organizationMemberRepository.existsById_OrganizationIdAndId_UserId(orgId, userId);
+	}
+
+	private void validateParentIssue(UUID projectId, UUID parentIssueId) {
+		if (parentIssueId == null) {
+			return;
+		}
+
+		issueRepository.findByIdAndProjectIdAndDeletedAtIsNull(parentIssueId, projectId)
+				.orElseThrow(ParentIssueNotFoundException::new);
+	}
+
+	private List<Label> loadProjectLabels(UUID projectId, List<UUID> labelIds) {
+		List<UUID> distinctLabelIds = labelIds.stream()
+				.distinct()
+				.toList();
+		List<Label> labels = labelRepository.findAllById(distinctLabelIds);
+		boolean allLabelsBelongToProject = labels.size() == distinctLabelIds.size()
+				&& labels.stream().allMatch(label -> projectId.equals(label.getProjectId()));
+		if (!allLabelsBelongToProject) {
+			throw new LabelNotInProjectException();
+		}
+		return labels;
 	}
 
 	private void saveCreationAuditLog(Issue issue, UUID reporterId) {
@@ -328,6 +422,7 @@ public class IssueService {
 		issueWatcherRepository.findAllByIdIssueId(issue.getId())
 				.stream()
 				.map(watcher -> watcher.getId().getUserId())
+				.filter(userId -> isCurrentOrganizationMember(orgId, userId))
 				.map(userRepository::findByIdAndIsActiveTrue)
 				.flatMap(java.util.Optional::stream)
 				.forEach(watcher -> notificationEventPublisher.publishEmailNotification(
@@ -374,13 +469,21 @@ public class IssueService {
 			issue.setDescription(request.description());
 		}
 		if (request.status() != null && !Objects.equals(issue.getStatus(), request.status())) {
+			IssueStatus previousStatus = issue.getStatus();
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "status", issue.getStatus(), request.status()));
 			issue.setStatus(request.status());
-			if (request.status() == IssueStatus.DONE) {
-				issue.setResolvedAt(LocalDateTime.now());
-			}
+			LocalDateTime statusChangedAt = LocalDateTime.now();
 			if (request.status() == IssueStatus.CLOSED) {
-				issue.setClosedAt(LocalDateTime.now());
+				if (previousStatus != IssueStatus.DONE || issue.getResolvedAt() == null) {
+					issue.setResolvedAt(statusChangedAt);
+				}
+				issue.setClosedAt(statusChangedAt);
+			} else if (request.status() == IssueStatus.DONE) {
+				issue.setResolvedAt(statusChangedAt);
+				issue.setClosedAt(null);
+			} else {
+				issue.setResolvedAt(null);
+				issue.setClosedAt(null);
 			}
 		}
 		if (request.priority() != null && !Objects.equals(issue.getPriority(), request.priority())) {
@@ -394,6 +497,10 @@ public class IssueService {
 		if (request.assigneeId() != null && !Objects.equals(issue.getAssigneeId(), request.assigneeId())) {
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "assigneeId", issue.getAssigneeId(), request.assigneeId()));
 			issue.setAssigneeId(request.assigneeId());
+		}
+		if (request.parentIssueId() != null && !Objects.equals(issue.getParentIssueId(), request.parentIssueId())) {
+			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "parentIssueId", issue.getParentIssueId(), request.parentIssueId()));
+			issue.setParentIssueId(request.parentIssueId());
 		}
 		if (request.storyPoints() != null && !Objects.equals(issue.getStoryPoints(), request.storyPoints())) {
 			auditLogs.add(createAuditLog(issue.getId(), requestingUserId, "storyPoints", issue.getStoryPoints(), request.storyPoints()));
@@ -428,13 +535,22 @@ public class IssueService {
 	}
 
 	private List<LabelResponse> loadLabelResponses(Issue issue) {
-		return issueLabelRepository.findAllByIdIssueId(issue.getId())
+		List<UUID> labelIds = issueLabelRepository.findAllByIdIssueId(issue.getId())
 				.stream()
-				.map(issueLabel -> new LabelResponse(
-						issueLabel.getId().getLabelId(),
-						issue.getProjectId(),
-						null,
-						null))
+				.map(issueLabel -> issueLabel.getId().getLabelId())
+				.toList();
+
+		if (labelIds.isEmpty()) {
+			return List.of();
+		}
+
+		return labelRepository.findAllById(labelIds)
+				.stream()
+				.map(label -> new LabelResponse(
+						label.getId(),
+						label.getProjectId(),
+						label.getName(),
+						label.getColorHex()))
 				.toList();
 	}
 

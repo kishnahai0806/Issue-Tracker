@@ -5,12 +5,11 @@ import java.util.List;
 
 import com.krish.issuetracker.config.InvalidCorsConfigurationException;
 import com.krish.issuetracker.security.jwt.JwtAuthenticationFilter;
+import com.krish.issuetracker.security.ratelimit.AuthRateLimitFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -30,12 +29,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final AuthRateLimitFilter authRateLimitFilter;
 	private final String allowedOrigins;
 
 	public SecurityConfig(
 			JwtAuthenticationFilter jwtAuthenticationFilter,
+			AuthRateLimitFilter authRateLimitFilter,
 			@Value("${cors.allowed-origins}") String allowedOrigins) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+		this.authRateLimitFilter = authRateLimitFilter;
 		this.allowedOrigins = allowedOrigins;
 	}
 
@@ -55,7 +57,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
 						.requestMatchers("/api/v1/auth/**").permitAll()
-						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
 						// WebSocket HTTP upgrade — auth handled at STOMP CONNECT level by JwtChannelInterceptor.
 						.requestMatchers("/ws/**").permitAll()
 						// Tomcat re-dispatches sendError() to /error; without this, error responses return wrong status.
@@ -64,6 +66,7 @@ public class SecurityConfig {
 						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterBefore(authRateLimitFilter, JwtAuthenticationFilter.class)
 				.build();
 	}
 
@@ -102,11 +105,6 @@ public class SecurityConfig {
 	public PasswordEncoder passwordEncoder() {
 		// Strength 12 raises BCrypt work factor above the default 10 for production password verification cost.
 		return new BCryptPasswordEncoder(12);
-	}
-
-	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-		return authenticationConfiguration.getAuthenticationManager();
 	}
 
 }

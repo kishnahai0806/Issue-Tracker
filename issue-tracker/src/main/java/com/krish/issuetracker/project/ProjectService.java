@@ -31,24 +31,25 @@ public class ProjectService {
 	}
 
 	@Transactional
-	@PreAuthorize("hasPermission(#request.organizationId(), 'ORGANIZATION', 'PROJECT_MANAGER')")
-	public ProjectResponse createProject(CreateProjectRequest request, UUID creatorUserId) {
-		organizationRepository.findById(request.organizationId())
-				.orElseThrow(() -> new OrganizationNotFoundException(request.organizationId()));
+	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'PROJECT_MANAGER')")
+	public ProjectResponse createProject(UUID orgId, CreateProjectRequest request, UUID creatorUserId) {
+		organizationRepository.findById(orgId)
+				.orElseThrow(() -> new OrganizationNotFoundException(orgId));
 
-		if (projectRepository.existsByKeyAndOrganizationId(request.key(), request.organizationId())) {
-			throw new ProjectKeyAlreadyExistsException(request.key(), request.organizationId());
+		if (projectRepository.existsByKeyAndOrganizationId(request.key(), orgId)) {
+			throw new ProjectKeyAlreadyExistsException(request.key(), orgId);
 		}
 
 		Project project = new Project();
-		project.setOrganizationId(request.organizationId());
+		project.setOrganizationId(orgId);
 		project.setName(request.name());
 		project.setKey(request.key());
+		project.setDescription(request.description());
 		project.setCreatedBy(creatorUserId);
 		project.setArchived(false);
 
 		Project savedProject = projectRepository.save(project);
-		log.info("Project created: {} in org {}", savedProject.getId(), request.organizationId());
+		log.info("Project created: {} in org {}", savedProject.getId(), orgId);
 
 		return toProjectResponse(savedProject);
 	}
@@ -73,12 +74,14 @@ public class ProjectService {
 	public ProjectResponse updateProject(
 			UUID orgId,
 			UUID projectId,
-			UpdateProjectRequest request,
-			UUID requestingUserId) {
+			UpdateProjectRequest request) {
 		Project project = loadActiveProject(orgId, projectId);
 
 		if (request.name() != null) {
 			project.setName(request.name());
+		}
+		if (request.description() != null) {
+			project.setDescription(request.description());
 		}
 
 		return toProjectResponse(projectRepository.save(project));
@@ -86,7 +89,7 @@ public class ProjectService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'PROJECT_MANAGER')")
-	public ProjectResponse archiveProject(UUID orgId, UUID projectId, UUID requestingUserId) {
+	public ProjectResponse archiveProject(UUID orgId, UUID projectId) {
 		Project project = loadActiveProject(orgId, projectId);
 		project.setArchived(true);
 
@@ -107,6 +110,7 @@ public class ProjectService {
 				project.getOrganizationId(),
 				project.getName(),
 				project.getKey(),
+				project.getDescription(),
 				project.getCreatedBy(),
 				project.isArchived(),
 				project.getCreatedAt(),

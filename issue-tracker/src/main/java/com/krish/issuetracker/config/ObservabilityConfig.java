@@ -2,6 +2,7 @@ package com.krish.issuetracker.config;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.krish.issuetracker.security.AuthFailureReason;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.binder.MeterBinder;
@@ -14,7 +15,7 @@ public class ObservabilityConfig {
 	// === Metric Tag Strategy ===
 	// auth.failures         → tag: reason
 	//   values: BAD_CREDENTIALS, ACCOUNT_DISABLED,
-	//           TOKEN_EXPIRED, TOKEN_INVALID
+	//           TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_REVOKED
 	// file.upload.validation.failure → tag: reason (already wired)
 	// issues.created        → no tags (low cardinality, context in MDC)
 	// issues.closed         → no tags
@@ -45,9 +46,12 @@ public class ObservabilityConfig {
 			Counter.builder("comments.added")
 					.description("Total number of comments added")
 					.register(registry);
-			Counter.builder("auth.failures")
-					.description("Total authentication failures - tag reason set at increment site")
-					.register(registry);
+			for (AuthFailureReason reason : AuthFailureReason.values()) {
+				Counter.builder(AuthFailureReason.METRIC_NAME)
+						.description("Total authentication failures by reason")
+						.tag(AuthFailureReason.REASON_TAG, reason.name())
+						.register(registry);
+			}
 			Counter.builder("emails.sent")
 					.description("Total emails sent successfully")
 					.register(registry);

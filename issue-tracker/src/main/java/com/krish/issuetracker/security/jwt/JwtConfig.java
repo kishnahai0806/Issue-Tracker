@@ -1,5 +1,6 @@
 package com.krish.issuetracker.security.jwt;
 
+import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.TokenBlacklist;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -20,8 +21,9 @@ public class JwtConfig {
 	public JwtAuthenticationFilter jwtAuthenticationFilter(
 			JwtService jwtService,
 			TokenBlacklist tokenBlacklist,
+			UserRepository userRepository,
 			MeterRegistry meterRegistry) {
-		return new JwtAuthenticationFilter(jwtService, tokenBlacklist, meterRegistry);
+		return new JwtAuthenticationFilter(jwtService, tokenBlacklist, userRepository, meterRegistry);
 	}
 
 	@Bean

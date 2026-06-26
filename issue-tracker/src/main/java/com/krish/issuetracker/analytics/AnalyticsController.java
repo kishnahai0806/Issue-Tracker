@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.krish.issuetracker.analytics.dto.AnalyticsBurndownResponse;
 import com.krish.issuetracker.analytics.dto.AnalyticsOverviewResponse;
 import com.krish.issuetracker.analytics.dto.AnalyticsTrendsResponse;
+import com.krish.issuetracker.exception.InvalidDateRangeException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
@@ -56,7 +57,7 @@ public class AnalyticsController {
 
 	private void validateDateRange(LocalDate from, LocalDate to) {
 		if (from.isAfter(to)) {
-			throw new IllegalArgumentException("from date must not be after to date");
+			throw new InvalidDateRangeException("from date must not be after to date");
 		}
 	}
 }

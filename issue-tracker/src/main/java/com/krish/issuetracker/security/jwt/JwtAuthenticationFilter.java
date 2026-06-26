@@ -3,7 +3,10 @@ package com.krish.issuetracker.security.jwt;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import com.krish.issuetracker.repository.UserRepository;
+import com.krish.issuetracker.security.AuthFailureReason;
 import com.krish.issuetracker.security.TokenBlacklist;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
@@ -25,11 +28,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtService jwtService;
 	private final TokenBlacklist tokenBlacklist;
+	private final UserRepository userRepository;
 	private final MeterRegistry meterRegistry;
 
-	public JwtAuthenticationFilter(JwtService jwtService, TokenBlacklist tokenBlacklist, MeterRegistry meterRegistry) {
+	public JwtAuthenticationFilter(
+			JwtService jwtService,
+			TokenBlacklist tokenBlacklist,
+			UserRepository userRepository,
+			MeterRegistry meterRegistry) {
 		this.jwtService = jwtService;
 		this.tokenBlacklist = tokenBlacklist;
+		this.userRepository = userRepository;
 		this.meterRegistry = meterRegistry;
 	}
 
@@ -48,17 +57,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private void authenticateToken(String token, HttpServletRequest request) {
 		if (!jwtService.validateToken(token)) {
-			meterRegistry.counter("auth.failures", "reason", "TOKEN_INVALID").increment();
+			AuthFailureReason reason = jwtService.isExpired(token)
+					? AuthFailureReason.TOKEN_EXPIRED
+					: AuthFailureReason.TOKEN_INVALID;
+			meterRegistry.counter(AuthFailureReason.METRIC_NAME, AuthFailureReason.REASON_TAG, reason.name()).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
 		if (tokenBlacklist.isBlacklisted(token)) {
-			meterRegistry.counter("auth.failures", "reason", "TOKEN_EXPIRED").increment();
+			meterRegistry.counter(
+					AuthFailureReason.METRIC_NAME,
+					AuthFailureReason.REASON_TAG,
+					AuthFailureReason.TOKEN_REVOKED.name()).increment();
 			SecurityContextHolder.clearContext();
 			return;
 		}
 
 		String userId = jwtService.extractUserId(token);
+		if (userRepository.findByIdAndIsActiveTrue(UUID.fromString(userId)).isEmpty()) {
+			meterRegistry.counter(
+					AuthFailureReason.METRIC_NAME,
+					AuthFailureReason.REASON_TAG,
+					AuthFailureReason.ACCOUNT_DISABLED.name()).increment();
+			SecurityContextHolder.clearContext();
+			return;
+		}
+
 		UsernamePasswordAuthenticationToken authentication =
 				new UsernamePasswordAuthenticationToken(userId, null, List.of());
 		authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

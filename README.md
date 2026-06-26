@@ -1,8 +1,8 @@
 # Issue Tracker
 
-> A production-grade multi-tenant issue tracker built with Spring Boot, PostgreSQL, Redis, and MinIO
+>A production-grade multi-tenant issue tracker demonstrating distributed systems engineering with Spring Boot — featuring Redis-backed WebSocket fan-out across replicas, atomic refresh token rotation via Lua, Spring Batch analytics with idempotent UPSERT, Bucket4j rate limiting, and full observability through Micrometer, Prometheus, and Jaeger.
 
-[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/) [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.15-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/) [![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/) [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
 
 ---
 
@@ -76,18 +76,21 @@ When a user sends a request to Issue Tracker, the Spring Boot API validates the 
 | Category | Technology | Purpose |
 |----------|------------|---------|
 | Language | Java 21 | Application runtime |
-| Framework | Spring Boot 3.5.14 | REST API foundation |
+| Framework | Spring Boot 3.5.15 | REST API foundation |
 | Security | Spring Security 6 + JJWT 0.12.5 | Stateless JWT auth |
-| Database | PostgreSQL 16 | Primary data store |
+| Database | PostgreSQL 16 + Spring Data JPA | Primary data store |
 | Migrations | Liquibase | Versioned schema changes |
-| Cache | Redis 7.2 | Sessions and permissions |
+| Cache | Redis 7.2 + Spring Cache | Sessions, permissions, and cached analytics |
 | Storage | AWS SDK S3 2.25.70 + MinIO | Issue attachments |
 | WebSocket | Spring WebSocket + STOMP | Live issue updates |
 | Batch | Spring Batch + ShedLock 5.16.0 | Analytics snapshots |
-| Mapping | MapStruct 1.5.5.Final | DTO mapping |
 | Mail | Spring Mail + Thymeleaf | Notification emails |
+| API Docs | Springdoc OpenAPI 2.8.17 | Swagger UI and OpenAPI docs |
+| Rate Limiting | Bucket4j 8.14.0 | Redis-backed auth endpoint throttling |
 | Metrics | Micrometer + Prometheus | Application metrics |
 | Tracing | OpenTelemetry + Jaeger | Request tracing |
+| Logging | Logstash Logback Encoder 7.4 | Structured JSON logging |
+| Testing | Spring Boot Test + Testcontainers + JaCoCo 0.8.12 | Integration tests and coverage gates |
 | CI/CD | GitHub Actions + Buildpacks | Test and image publishing |
 
 ---
@@ -127,6 +130,11 @@ issue-tracker/
 |   |   |-- batch/              # Nightly analytics snapshots
 |   |   |-- websocket/          # STOMP issue updates
 |   |   |-- security/           # JWT, permissions, sessions
+|   |   |-- domain/             # JPA entities and enums
+|   |   |-- repository/         # Spring Data repositories
+|   |   |-- exception/          # Typed exceptions and API errors
+|   |   |-- notification/       # Email events and delivery
+|   |   |-- logging/            # MDC and structured logging
 |   |   \-- config/             # Redis, CORS, observability
 |   \-- src/main/resources/
 |       |-- application.yaml
@@ -161,7 +169,7 @@ cp .env.example .env
 # Edit .env and fill in your local values:
 # - JWT_SECRET: any 32+ character string for local dev
 # - POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD for PostgreSQL
-# - MINIO_ACCESS_KEY and MINIO_SECRET_KEY for MinIO
+# - STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY for MinIO
 # - GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD for Grafana
 
 # 3. Start all infrastructure
@@ -173,8 +181,7 @@ cd issue-tracker
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local  # Windows
 ```
 
-> Attachment uploads expect the configured MinIO bucket to exist.
-> Create it from the MinIO console before testing upload endpoints.
+> The Docker Compose bootstrap service creates the configured MinIO bucket automatically.
 
 Once running, access the services at:
 
@@ -183,10 +190,10 @@ Once running, access the services at:
 | API | http://localhost:8080 | Bearer JWT |
 | Swagger UI | http://localhost:8080/swagger-ui/index.html | Local profile only |
 | Health | http://localhost:8090/actuator/health | - |
-| Grafana | http://localhost:3001 | admin / admin |
+| Grafana | http://localhost:3001 | `${GRAFANA_ADMIN_USER}` / `${GRAFANA_ADMIN_PASSWORD}` |
 | Jaeger | http://localhost:16686 | - |
 | Prometheus | http://localhost:9090 | - |
-| MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
+| MinIO Console | http://localhost:9001 | `${STORAGE_ACCESS_KEY}` / `${STORAGE_SECRET_KEY}` |
 | MailHog | http://localhost:8025 | - |
 
 ### Running Tests
@@ -223,7 +230,7 @@ mvnw.cmd verify      # Windows
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/archive` | PROJECT_MANAGER | Archive a project |
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues` | DEVELOPER | Create an issue |
 | `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues` | REPORTER | List and filter issues |
-| `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | DEVELOPER | Get issue details |
+| `GET` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | REPORTER | Get issue details |
 | `PATCH` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | DEVELOPER | Update an issue |
 | `DELETE` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}` | PROJECT_MANAGER | Soft delete an issue |
 | `POST` | `/api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}/watchers` | REPORTER | Add issue watcher |
@@ -254,11 +261,14 @@ Full interactive documentation is available at `/swagger-ui.html` when the local
 |----------|-------------|---------|
 | `SERVER_PORT` | API server port | `8080` |
 | `MANAGEMENT_SERVER_PORT` | Actuator server port | `8090` |
-| `SPRING_DATASOURCE_URL` | PostgreSQL connection URL | `jdbc:postgresql://localhost:5432/issue_tracker` |
+| `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | Trace sampling probability | `0.10` |
+| `SPRING_DATASOURCE_URL` | PostgreSQL connection URL | `jdbc:postgresql://localhost:5433/issue_tracker` |
 | `SPRING_DATASOURCE_USERNAME` | PostgreSQL username | `issue_tracker_local` |
 | `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password | `local_dev_password` |
 | `SPRING_REDIS_HOST` | Redis hostname | `localhost` |
 | `SPRING_REDIS_PORT` | Redis port | `6379` |
+| `MULTIPART_MAX_FILE_SIZE` | Maximum uploaded file size | `10MB` |
+| `MULTIPART_MAX_REQUEST_SIZE` | Maximum multipart request size | `10MB` |
 | `JWT_SECRET` | JWT signing secret | `local-dev-change-me-minimum-32-characters` |
 | `JWT_ISSUER` | Expected token issuer | `issue-tracker` |
 | `JWT_AUDIENCE` | Expected token audience | `issue-tracker-client` |
@@ -266,14 +276,33 @@ Full interactive documentation is available at `/swagger-ui.html` when the local
 | `JWT_REFRESH_EXPIRY_MS` | Refresh token lifetime | `604800000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
 | `STORAGE_ENDPOINT` | S3-compatible storage endpoint | `http://localhost:9000` |
-| `STORAGE_ACCESS_KEY` | S3 access key | `minio_local_access` |
-| `STORAGE_SECRET_KEY` | S3 secret key | `minio_local_secret` |
+| `STORAGE_ACCESS_KEY` | S3 access key | `minioadmin` |
+| `STORAGE_SECRET_KEY` | S3 secret key | `minioadmin` |
 | `STORAGE_BUCKET_NAME` | Attachment bucket name | `issue-tracker` |
+| `STORAGE_PRESIGNED_EXPIRY_MINUTES` | Presigned download URL lifetime | `60` |
+| `STORAGE_MAX_FILE_SIZE_BYTES` | Maximum validated upload size in bytes | `10485760` |
 | `MAIL_HOST` | SMTP host | `localhost` |
 | `MAIL_PORT` | SMTP port | `1025` |
+| `MAIL_USERNAME` | SMTP username | `""` |
+| `MAIL_PASSWORD` | SMTP password | `""` |
+| `MAIL_FROM_ADDRESS` | Notification sender address | `noreply@issuetracker.com` |
+| `MAIL_FROM_NAME` | Notification sender name | `Issue Tracker` |
+| `MAIL_THREAD_POOL_CORE` | Core email worker threads | `2` |
+| `MAIL_THREAD_POOL_MAX` | Maximum email worker threads | `4` |
+| `MAIL_THREAD_POOL_QUEUE` | Email queue capacity | `100` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP trace endpoint | `http://localhost:4318/v1/traces` |
 | `SPRINGDOC_API_DOCS_ENABLED` | OpenAPI docs toggle | `true` |
 | `SWAGGER_UI_ENABLED` | Swagger UI toggle | `true` |
+| `BATCH_ANALYTICS_CRON` | Analytics snapshot schedule | `0 0 1 * * *` |
+| `CACHE_ANALYTICS_TRENDS_TTL` | Analytics trends cache TTL in minutes | `60` |
+| `CACHE_ANALYTICS_BURNDOWN_TTL` | Analytics burndown cache TTL in minutes | `60` |
+| `RATE_LIMIT_ENABLED` | Auth endpoint rate limiting toggle | `true` |
+| `RATE_LIMIT_LOGIN_CAPACITY` | Login token bucket capacity | `5` |
+| `RATE_LIMIT_LOGIN_PERIOD` | Login token bucket refill period | `1m` |
+| `RATE_LIMIT_REGISTER_CAPACITY` | Register token bucket capacity | `3` |
+| `RATE_LIMIT_REGISTER_PERIOD` | Register token bucket refill period | `1h` |
+| `RATE_LIMIT_REFRESH_CAPACITY` | Refresh token bucket capacity | `10` |
+| `RATE_LIMIT_REFRESH_PERIOD` | Refresh token bucket refill period | `1m` |
 
 For production, secrets belong in Kubernetes `Secret` values or CI/CD secret storage, not in committed files.
 
@@ -296,8 +325,9 @@ push to any branch / PR to main
          v
   +-------------+
   |  Job 2      |  Runs only on push to main
-  | build-push  |  Builds ghcr.io/kishnahai0806/issue-tracker:latest
-  +-------------+  Pushes latest and commit SHA image tags
+  | Build and   |  Builds ghcr.io/kishnahai0806/issue-tracker:latest
+  | Push Image  |  Logs in to GHCR, pushes latest and commit SHA image tags
+  +-------------+
 ```
 
 Docker images are published to:
@@ -323,6 +353,7 @@ Both the application and local infrastructure expose metrics, traces, dashboards
 | `storage.upload.duration` | Timer for attachment upload duration |
 | `file.upload.validation.failure` | Counter tagged by upload validation failure reason |
 | `batch.analytics.snapshot.duration` | Timer for analytics snapshot job duration |
+| `auth.rate_limit.exceeded` | Counter tagged by auth endpoint when rate limits are exceeded |
 
 **Traces** - requests are sampled by Micrometer tracing and exported through OTLP HTTP to `http://localhost:4318/v1/traces`. The OpenTelemetry collector forwards spans to Jaeger, available at `http://localhost:16686`.
 
@@ -334,17 +365,22 @@ Both the application and local infrastructure expose metrics, traces, dashboards
 
 ## Screenshots
 
-### Swagger UI - API Documentation
-Interactive API documentation showing auth, organization, project, issue, comment, label, attachment, and analytics endpoints with JWT bearer authentication.
+### Swagger UI — API Documentation
+Issue Tracker API v1 with OAS 3.1, showing organization-controller and project-controller endpoint groups expanded, Authorize button in the top right, and lock icons on all authenticated endpoints.
 
 ![Swagger UI](docs/screenshots/swagger-ui.png)
 
-### Grafana Dashboard - Real-time Metrics
-Live operational dashboard showing issue creation and closure rates, authentication failures, HTTP request rate, WebSocket connections, JVM heap usage, storage latency, and batch duration.
+### Grafana Dashboard — Real-time Metrics
+Live operations dashboard showing Issues Created Rate spike, Auth Failures by Reason with all five reason tags (ACCOUNT_DISABLED, BAD_CREDENTIALS, TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_REVOKED), HTTP Request Rate by Status (200/201/302), and JVM Heap Usage gauge.
 
 ![Grafana Dashboard](docs/screenshots/grafana-dashboard.png)
 
-### Jaeger - Request Tracing
-Request tracing view for spans exported from the Spring Boot application through the OpenTelemetry collector into Jaeger.
+### Jaeger — Trace List
+Recent request traces from the issue-tracker service showing security filterchain before/after operations, span counts, error indicators, durations, and service search filters.
 
-![Jaeger Trace Detail](docs/screenshots/jaeger-trace-detail.png)
+![Jaeger Trace List](docs/screenshots/jaeger-trace-list.png)
+
+### Jaeger — Attachment Upload Trace Detail
+Waterfall trace for POST /api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}/attachments showing 269.82ms duration across 6 spans including security filterchain, authorize request, secured request, and authorize method.
+
+![Jaeger Trace Detail](docs/screenshots/jaeger-trace-details.png)

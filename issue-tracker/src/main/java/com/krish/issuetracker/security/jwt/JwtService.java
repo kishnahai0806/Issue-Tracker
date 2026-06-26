@@ -7,6 +7,7 @@ import java.util.UUID;
 import javax.crypto.SecretKey;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -51,6 +52,17 @@ public class JwtService {
 	public boolean validateToken(String token) {
 		try {
 			parseClaims(token);
+			return true;
+		} catch (JwtException | IllegalArgumentException ex) {
+			return false;
+		}
+	}
+
+	public boolean isExpired(String token) {
+		try {
+			parseClaims(token);
+			return false;
+		} catch (ExpiredJwtException ex) {
 			return true;
 		} catch (JwtException | IllegalArgumentException ex) {
 			return false;

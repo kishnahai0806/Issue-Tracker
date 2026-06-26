@@ -5,9 +5,9 @@ spring:
   application:
     name: issue-tracker
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/issue_tracker}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5433/issue_tracker}
     username: ${SPRING_DATASOURCE_USERNAME:issue_tracker_local}
-    password: ${SPRING_DATASOURCE_PASSWORD:local-dev-password}
+    password: ${SPRING_DATASOURCE_PASSWORD:local_dev_password}
   jpa:
     open-in-view: false
     hibernate:
@@ -99,3 +99,15 @@ cache:
   analytics:
     trends-ttl-minutes: ${CACHE_ANALYTICS_TRENDS_TTL:60}
     burndown-ttl-minutes: ${CACHE_ANALYTICS_BURNDOWN_TTL:60}
+
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  login:
+    capacity: ${RATE_LIMIT_LOGIN_CAPACITY:5}
+    refill-period: ${RATE_LIMIT_LOGIN_PERIOD:1m}
+  register:
+    capacity: ${RATE_LIMIT_REGISTER_CAPACITY:3}
+    refill-period: ${RATE_LIMIT_REGISTER_PERIOD:1h}
+  refresh:
+    capacity: ${RATE_LIMIT_REFRESH_CAPACITY:10}
+    refill-period: ${RATE_LIMIT_REFRESH_PERIOD:1m}

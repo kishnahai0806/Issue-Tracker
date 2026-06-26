@@ -3,6 +3,7 @@ package com.krish.issuetracker.config;
 import java.time.Duration;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -33,13 +34,17 @@ public class RedisConfig {
 	}
 
 	@Bean
-	public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+	public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+		GenericJackson2JsonRedisSerializer valueSerializer = GenericJackson2JsonRedisSerializer.builder()
+				.objectMapper(objectMapper.copy())
+				.defaultTyping(true)
+				.build();
+
 		RedisCacheConfiguration defaultConfiguration = RedisCacheConfiguration.defaultCacheConfig()
 				.entryTtl(DEFAULT_TTL)
 				.disableCachingNullValues()
 				.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-				.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-						new GenericJackson2JsonRedisSerializer()));
+				.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer));
 
 		Map<String, RedisCacheConfiguration> cacheConfigurations = Map.of(
 				ANALYTICS_TRENDS_CACHE,

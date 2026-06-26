@@ -12,6 +12,7 @@ import com.krish.issuetracker.issue.dto.IssueResponse;
 import com.krish.issuetracker.issue.dto.PagedIssueResponse;
 import com.krish.issuetracker.issue.dto.UpdateIssueRequest;
 import com.krish.issuetracker.issue.dto.WatcherRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -46,12 +47,11 @@ public class IssueController {
 			@PathVariable UUID projectId,
 			@Valid @RequestBody CreateIssueRequest request,
 			Authentication authentication) {
-		// Prevents a request body projectId from silently overriding the authenticated path projectId.
-		if (!projectId.equals(request.projectId())) {
-			throw new IllegalArgumentException("Path projectId does not match request projectId");
-		}
-
-		IssueResponse response = issueService.createIssue(request, getAuthenticatedUserId(authentication), orgId);
+		IssueResponse response = issueService.createIssue(
+				orgId,
+				projectId,
+				request,
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -84,13 +84,8 @@ public class IssueController {
 	public ResponseEntity<IssueDetailResponse> getIssue(
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
-			@PathVariable UUID issueId,
-			Authentication authentication) {
-		IssueDetailResponse response = issueService.getIssue(
-				orgId,
-				projectId,
-				issueId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID issueId) {
+		IssueDetailResponse response = issueService.getIssue(orgId, projectId, issueId);
 		return ResponseEntity.ok(response);
 	}
 
@@ -106,7 +101,7 @@ public class IssueController {
 				projectId,
 				issueId,
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.ok(response);
 	}
 
@@ -116,7 +111,7 @@ public class IssueController {
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
 			Authentication authentication) {
-		issueService.deleteIssue(orgId, projectId, issueId, getAuthenticatedUserId(authentication));
+		issueService.deleteIssue(orgId, projectId, issueId, AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
 	}
 
@@ -125,8 +120,9 @@ public class IssueController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@Valid @RequestBody WatcherRequest request) {
-		issueService.addWatcher(orgId, projectId, issueId, request.userId());
+			@Valid @RequestBody WatcherRequest request,
+			Authentication authentication) {
+		issueService.addWatcher(orgId, projectId, issueId, request.userId(), AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
 	}
 
@@ -135,12 +131,9 @@ public class IssueController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@PathVariable UUID userId) {
-		issueService.removeWatcher(orgId, projectId, issueId, userId);
+			@PathVariable UUID userId,
+			Authentication authentication) {
+		issueService.removeWatcher(orgId, projectId, issueId, userId, AuthenticatedUser.id(authentication));
 		return ResponseEntity.noContent().build();
-	}
-
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
 	}
 }

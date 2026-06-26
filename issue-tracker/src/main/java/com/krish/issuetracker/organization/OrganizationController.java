@@ -10,6 +10,7 @@ import com.krish.issuetracker.organization.dto.OrganizationResponse;
 import com.krish.issuetracker.organization.dto.OrganizationSummaryResponse;
 import com.krish.issuetracker.organization.dto.UpdateMemberRoleRequest;
 import com.krish.issuetracker.organization.dto.UpdateOrganizationRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,13 +42,13 @@ public class OrganizationController {
 			Authentication authentication) {
 		OrganizationResponse response = organizationService.createOrganization(
 				request,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
 	@GetMapping
-	public ResponseEntity<List<OrganizationSummaryResponse>> listOrganizations() {
-		return ResponseEntity.ok(organizationService.listOrganizations());
+	public ResponseEntity<List<OrganizationSummaryResponse>> listOrganizations(Authentication authentication) {
+		return ResponseEntity.ok(organizationService.listOrganizations(AuthenticatedUser.id(authentication)));
 	}
 
 	@GetMapping("/{orgId}")
@@ -58,24 +59,16 @@ public class OrganizationController {
 	@PatchMapping("/{orgId}")
 	public ResponseEntity<OrganizationResponse> updateOrganization(
 			@PathVariable UUID orgId,
-			@Valid @RequestBody UpdateOrganizationRequest request,
-			Authentication authentication) {
-		OrganizationResponse response = organizationService.updateOrganization(
-				orgId,
-				request,
-				getAuthenticatedUserId(authentication));
+			@Valid @RequestBody UpdateOrganizationRequest request) {
+		OrganizationResponse response = organizationService.updateOrganization(orgId, request);
 		return ResponseEntity.ok(response);
 	}
 
 	@PostMapping("/{orgId}/members")
 	public ResponseEntity<MemberResponse> addMember(
 			@PathVariable UUID orgId,
-			@Valid @RequestBody AddMemberRequest request,
-			Authentication authentication) {
-		MemberResponse response = organizationService.addMember(
-				orgId,
-				request,
-				getAuthenticatedUserId(authentication));
+			@Valid @RequestBody AddMemberRequest request) {
+		MemberResponse response = organizationService.addMember(orgId, request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -88,26 +81,17 @@ public class OrganizationController {
 	public ResponseEntity<MemberResponse> updateMemberRole(
 			@PathVariable UUID orgId,
 			@PathVariable UUID userId,
-			@Valid @RequestBody UpdateMemberRoleRequest request,
-			Authentication authentication) {
-		MemberResponse response = organizationService.updateMemberRole(
-				orgId,
-				userId,
-				request,
-				getAuthenticatedUserId(authentication));
+			@Valid @RequestBody UpdateMemberRoleRequest request) {
+		MemberResponse response = organizationService.updateMemberRole(orgId, userId, request);
 		return ResponseEntity.ok(response);
 	}
 
 	@DeleteMapping("/{orgId}/members/{userId}")
 	public ResponseEntity<Void> removeMember(
 			@PathVariable UUID orgId,
-			@PathVariable UUID userId,
-			Authentication authentication) {
-		organizationService.removeMember(orgId, userId, getAuthenticatedUserId(authentication));
+			@PathVariable UUID userId) {
+		organizationService.removeMember(orgId, userId);
 		return ResponseEntity.noContent().build();
 	}
 
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
-	}
 }

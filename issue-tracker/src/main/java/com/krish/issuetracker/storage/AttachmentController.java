@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import com.krish.issuetracker.security.AuthenticatedUser;
 import com.krish.issuetracker.storage.dto.AttachmentResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +42,7 @@ public class AttachmentController {
 				projectId,
 				issueId,
 				file,
-				getAuthenticatedUserId(authentication));
+				AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -70,18 +71,9 @@ public class AttachmentController {
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
 			@PathVariable UUID issueId,
-			@PathVariable UUID attachmentId,
-			Authentication authentication) {
-		attachmentService.deleteAttachment(
-				orgId,
-				projectId,
-				issueId,
-				attachmentId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID attachmentId) {
+		attachmentService.deleteAttachment(orgId, projectId, issueId, attachmentId);
 		return ResponseEntity.noContent().build();
 	}
 
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
-	}
 }

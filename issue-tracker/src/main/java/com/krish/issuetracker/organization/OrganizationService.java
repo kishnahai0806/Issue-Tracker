@@ -10,7 +10,9 @@ import com.krish.issuetracker.domain.entity.User;
 import com.krish.issuetracker.domain.enums.UserRole;
 import com.krish.issuetracker.exception.MemberAlreadyExistsException;
 import com.krish.issuetracker.exception.MemberNotFoundException;
+import com.krish.issuetracker.exception.LastOrganizationAdminException;
 import com.krish.issuetracker.exception.OrganizationNotFoundException;
+import com.krish.issuetracker.exception.OrganizationSlugAlreadyExistsException;
 import com.krish.issuetracker.exception.UserNotFoundException;
 import com.krish.issuetracker.organization.dto.AddMemberRequest;
 import com.krish.issuetracker.organization.dto.CreateOrganizationRequest;
@@ -21,6 +23,7 @@ import com.krish.issuetracker.organization.dto.UpdateMemberRoleRequest;
 import com.krish.issuetracker.organization.dto.UpdateOrganizationRequest;
 import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.OrganizationRepository;
+import com.krish.issuetracker.repository.IssueWatcherRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.permission.OrganizationMemberPermissionEvaluator;
 import lombok.extern.slf4j.Slf4j;
@@ -36,16 +39,19 @@ public class OrganizationService {
 
 	private final OrganizationRepository organizationRepository;
 	private final OrganizationMemberRepository organizationMemberRepository;
+	private final IssueWatcherRepository issueWatcherRepository;
 	private final UserRepository userRepository;
 	private final OrganizationMemberPermissionEvaluator permissionEvaluator;
 
 	public OrganizationService(
 			OrganizationRepository organizationRepository,
 			OrganizationMemberRepository organizationMemberRepository,
+			IssueWatcherRepository issueWatcherRepository,
 			UserRepository userRepository,
 			OrganizationMemberPermissionEvaluator permissionEvaluator) {
 		this.organizationRepository = organizationRepository;
 		this.organizationMemberRepository = organizationMemberRepository;
+		this.issueWatcherRepository = issueWatcherRepository;
 		this.userRepository = userRepository;
 		this.permissionEvaluator = permissionEvaluator;
 	}
@@ -54,7 +60,7 @@ public class OrganizationService {
 	@PreAuthorize("isAuthenticated()")
 	public OrganizationResponse createOrganization(CreateOrganizationRequest request, UUID creatorUserId) {
 		if (organizationRepository.existsBySlug(request.slug())) {
-			throw new IllegalStateException("Slug already taken: " + request.slug());
+			throw new OrganizationSlugAlreadyExistsException(request.slug());
 		}
 
 		Organization organization = new Organization();
@@ -81,8 +87,14 @@ public class OrganizationService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<OrganizationSummaryResponse> listOrganizations() {
-		return organizationRepository.findAllByIsActiveTrue()
+	@PreAuthorize("isAuthenticated()")
+	public List<OrganizationSummaryResponse> listOrganizations(UUID requestingUserId) {
+		List<UUID> organizationIds = organizationMemberRepository.findOrganizationIdsByUserId(requestingUserId);
+		if (organizationIds.isEmpty()) {
+			return List.of();
+		}
+
+		return organizationRepository.findAllByIdInAndIsActiveTrue(organizationIds)
 				.stream()
 				.map(this::toOrganizationSummaryResponse)
 				.toList();
@@ -92,8 +104,7 @@ public class OrganizationService {
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
 	public OrganizationResponse updateOrganization(
 			UUID orgId,
-			UpdateOrganizationRequest request,
-			UUID requestingUserId) {
+			UpdateOrganizationRequest request) {
 		Organization organization = loadOrganization(orgId);
 
 		if (request.name() != null) {
@@ -106,7 +117,7 @@ public class OrganizationService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
-	public MemberResponse addMember(UUID orgId, AddMemberRequest request, UUID requestingUserId) {
+	public MemberResponse addMember(UUID orgId, AddMemberRequest request) {
 		loadOrganization(orgId);
 		User user = loadUser(request.userId());
 		OrganizationMemberId memberId = new OrganizationMemberId(orgId, request.userId());
@@ -128,10 +139,11 @@ public class OrganizationService {
 
 	@Transactional
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'ADMIN')")
-	public void removeMember(UUID orgId, UUID userId, UUID requestingUserId) {
+	public void removeMember(UUID orgId, UUID userId) {
 		OrganizationMember member = loadMember(orgId, userId);
 		preventRemovingLastAdmin(orgId, member);
 
+		issueWatcherRepository.deleteByOrganizationIdAndUserId(orgId, userId);
 		organizationMemberRepository.delete(member);
 		permissionEvaluator.evictMembership(orgId, userId); // EVICTION SITE 2
 		log.info("Member removed from org {}: {}", orgId, userId);
@@ -142,8 +154,7 @@ public class OrganizationService {
 	public MemberResponse updateMemberRole(
 			UUID orgId,
 			UUID userId,
-			UpdateMemberRoleRequest request,
-			UUID requestingUserId) {
+			UpdateMemberRoleRequest request) {
 		OrganizationMember member = loadMember(orgId, userId);
 		preventDemotingLastAdmin(orgId, member, request.role());
 
@@ -182,13 +193,13 @@ public class OrganizationService {
 
 	private void preventRemovingLastAdmin(UUID orgId, OrganizationMember member) {
 		if (member.getRole() == UserRole.ADMIN && adminCount(orgId) == 1) {
-			throw new IllegalStateException("Cannot remove the last admin of an organization");
+			throw new LastOrganizationAdminException("Cannot remove the last admin of an organization");
 		}
 	}
 
 	private void preventDemotingLastAdmin(UUID orgId, OrganizationMember member, UserRole newRole) {
 		if (member.getRole() == UserRole.ADMIN && newRole != UserRole.ADMIN && adminCount(orgId) == 1) {
-			throw new IllegalStateException("Cannot demote the last admin of an organization");
+			throw new LastOrganizationAdminException("Cannot demote the last admin of an organization");
 		}
 	}
 

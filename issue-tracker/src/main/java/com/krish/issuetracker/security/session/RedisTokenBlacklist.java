@@ -33,6 +33,6 @@ public class RedisTokenBlacklist implements TokenBlacklist {
 	}
 
 	private String blacklistKey(String token) {
-		return BLACKLIST_KEY_PREFIX + token;
+		return BLACKLIST_KEY_PREFIX + TokenHasher.sha256Base64Url(token);
 	}
 }

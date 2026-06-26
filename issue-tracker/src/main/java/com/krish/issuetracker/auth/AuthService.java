@@ -1,6 +1,7 @@
 package com.krish.issuetracker.auth;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,7 +11,6 @@ import com.krish.issuetracker.auth.dto.RefreshRequest;
 import com.krish.issuetracker.auth.dto.RegisterRequest;
 import com.krish.issuetracker.auth.dto.UserResponse;
 import com.krish.issuetracker.domain.entity.User;
-import com.krish.issuetracker.repository.OrganizationMemberRepository;
 import com.krish.issuetracker.repository.UserRepository;
 import com.krish.issuetracker.security.TokenBlacklist;
 import com.krish.issuetracker.security.jwt.JwtProperties;
@@ -29,7 +29,6 @@ public class AuthService {
 	private static final long MILLIS_PER_SECOND = 1_000L;
 
 	private final UserRepository userRepository;
-	private final OrganizationMemberRepository organizationMemberRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final RefreshTokenStore refreshTokenStore;
@@ -38,14 +37,12 @@ public class AuthService {
 
 	public AuthService(
 			UserRepository userRepository,
-			OrganizationMemberRepository organizationMemberRepository,
 			PasswordEncoder passwordEncoder,
 			JwtService jwtService,
 			RefreshTokenStore refreshTokenStore,
 			TokenBlacklist tokenBlacklist,
 			JwtProperties jwtProperties) {
 		this.userRepository = userRepository;
-		this.organizationMemberRepository = organizationMemberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtService = jwtService;
 		this.refreshTokenStore = refreshTokenStore;
@@ -72,30 +69,31 @@ public class AuthService {
 		return toUserResponse(savedUser);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public AuthResponse login(LoginRequest request) {
 		User user = userRepository.findByEmail(request.email())
 				.orElseThrow(InvalidCredentialsException::new);
 
-		if (!user.isActive()) {
-			throw new UserDisabledException(user.getId());
-		}
-
 		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 			throw new InvalidCredentialsException();
 		}
+		if (!user.isActive()) {
+			throw new InvalidCredentialsException();
+		}
+
+		user.setLastLoginAt(LocalDateTime.now());
+		userRepository.save(user);
 
 		AuthResponse response = issueTokenPair(user);
-		organizationMemberRepository.findById_UserId(user.getId());
 		log.info("Login successful: {}", user.getId());
 
 		return response;
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public AuthResponse refresh(RefreshRequest request) {
 		String currentRefreshTokenHash = refreshTokenStore.hashToken(request.refreshToken());
-		UUID userId = refreshTokenStore.findUserIdByTokenHash(currentRefreshTokenHash)
+		UUID userId = refreshTokenStore.consumeToken(currentRefreshTokenHash)
 				.orElseThrow(InvalidRefreshTokenException::new);
 
 		User user = userRepository.findById(userId)
@@ -105,14 +103,13 @@ public class AuthService {
 			throw new InvalidRefreshTokenException();
 		}
 
-		refreshTokenStore.revokeToken(currentRefreshTokenHash);
 		AuthResponse response = issueTokenPair(user);
 		log.info("Token refreshed: {}", user.getId());
 
 		return response;
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public void logout(String rawAccessToken, String rawRefreshToken) {
 		String refreshTokenHash = refreshTokenStore.hashToken(rawRefreshToken);
 		Optional<UUID> userId = refreshTokenStore.findUserIdByTokenHash(refreshTokenHash);

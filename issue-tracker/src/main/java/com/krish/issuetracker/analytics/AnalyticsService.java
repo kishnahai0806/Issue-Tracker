@@ -72,7 +72,7 @@ public class AnalyticsService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	@Cacheable(value = "analytics-trends", key = "#projectId + '_' + #from + '_' + #to")
+	@Cacheable(value = "analytics-trends", key = "#orgId + '_' + #projectId + '_' + #from + '_' + #to")
 	public AnalyticsTrendsResponse getProjectTrends(UUID orgId, UUID projectId, LocalDate from, LocalDate to) {
 		verifyProjectAccess(orgId, projectId);
 		List<AnalyticsTrendPoint> points = analyticsSnapshotRepository
@@ -91,7 +91,7 @@ public class AnalyticsService {
 
 	@Transactional(readOnly = true)
 	@PreAuthorize("hasPermission(#orgId, 'ORGANIZATION', 'REPORTER')")
-	@Cacheable(value = "analytics-burndown", key = "#projectId + '_' + #from + '_' + #to")
+	@Cacheable(value = "analytics-burndown", key = "#orgId + '_' + #projectId + '_' + #from + '_' + #to")
 	public AnalyticsBurndownResponse getProjectBurndown(UUID orgId, UUID projectId, LocalDate from, LocalDate to) {
 		verifyProjectAccess(orgId, projectId);
 		List<BurndownPoint> points = analyticsSnapshotRepository

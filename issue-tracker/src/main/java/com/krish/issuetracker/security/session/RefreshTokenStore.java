@@ -1,8 +1,5 @@
 package com.krish.issuetracker.security.session;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
@@ -12,15 +9,25 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RefreshTokenStore {
 
 	private static final int REFRESH_TOKEN_BYTES = 32;
-	private static final String HASH_ALGORITHM = "SHA-256";
 	private static final String REFRESH_TOKEN_KEY_PREFIX = "refresh:";
 	private static final String USER_REFRESH_TOKENS_KEY_PREFIX = "refresh:user:";
+	private static final RedisScript<String> CONSUME_REFRESH_TOKEN_SCRIPT = new DefaultRedisScript<>("""
+			local userId = redis.call('GET', KEYS[1])
+			if not userId then
+				return nil
+			end
+			redis.call('DEL', KEYS[1])
+			redis.call('SREM', ARGV[2] .. userId, ARGV[1])
+			return userId
+			""", String.class);
 
 	private final StringRedisTemplate redisTemplate;
 	private final SecureRandom secureRandom;
@@ -37,13 +44,7 @@ public class RefreshTokenStore {
 	}
 
 	public String hashToken(String rawToken) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
-			byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-		} catch (NoSuchAlgorithmException ex) {
-			throw new TokenHashingException(HASH_ALGORITHM + " is not available", ex);
-		}
+		return TokenHasher.sha256Base64Url(rawToken);
 	}
 
 	public void storeSession(String tokenHash, UUID userId, Duration ttl) {
@@ -57,6 +58,18 @@ public class RefreshTokenStore {
 
 	public Optional<UUID> findUserIdByTokenHash(String tokenHash) {
 		String userId = redisTemplate.opsForValue().get(refreshKey(tokenHash));
+		if (userId == null) {
+			return Optional.empty();
+		}
+		return Optional.of(UUID.fromString(userId));
+	}
+
+	public Optional<UUID> consumeToken(String tokenHash) {
+		String userId = redisTemplate.execute(
+				CONSUME_REFRESH_TOKEN_SCRIPT,
+				List.of(refreshKey(tokenHash)),
+				tokenHash,
+				USER_REFRESH_TOKENS_KEY_PREFIX);
 		if (userId == null) {
 			return Optional.empty();
 		}
@@ -98,12 +111,5 @@ public class RefreshTokenStore {
 
 	private String userRefreshTokensKey(String userId) {
 		return USER_REFRESH_TOKENS_KEY_PREFIX + userId;
-	}
-
-	private static class TokenHashingException extends IllegalStateException {
-
-		TokenHashingException(String message, Throwable cause) {
-			super(message, cause);
-		}
 	}
 }

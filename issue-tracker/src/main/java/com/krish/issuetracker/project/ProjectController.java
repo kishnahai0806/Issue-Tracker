@@ -7,6 +7,7 @@ import com.krish.issuetracker.project.dto.CreateProjectRequest;
 import com.krish.issuetracker.project.dto.ProjectResponse;
 import com.krish.issuetracker.project.dto.ProjectSummaryResponse;
 import com.krish.issuetracker.project.dto.UpdateProjectRequest;
+import com.krish.issuetracker.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +37,7 @@ public class ProjectController {
 			@PathVariable UUID orgId,
 			@Valid @RequestBody CreateProjectRequest request,
 			Authentication authentication) {
-		// Prevents a request body organizationId from silently overriding the authenticated path orgId.
-		if (!orgId.equals(request.organizationId())) {
-			throw new IllegalArgumentException("Path orgId does not match request organizationId");
-		}
-
-		ProjectResponse response = projectService.createProject(request, getAuthenticatedUserId(authentication));
+		ProjectResponse response = projectService.createProject(orgId, request, AuthenticatedUser.id(authentication));
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 
@@ -61,29 +57,17 @@ public class ProjectController {
 	public ResponseEntity<ProjectResponse> updateProject(
 			@PathVariable UUID orgId,
 			@PathVariable UUID projectId,
-			@Valid @RequestBody UpdateProjectRequest request,
-			Authentication authentication) {
-		ProjectResponse response = projectService.updateProject(
-				orgId,
-				projectId,
-				request,
-				getAuthenticatedUserId(authentication));
+			@Valid @RequestBody UpdateProjectRequest request) {
+		ProjectResponse response = projectService.updateProject(orgId, projectId, request);
 		return ResponseEntity.ok(response);
 	}
 
 	@PostMapping("/{projectId}/archive")
 	public ResponseEntity<ProjectResponse> archiveProject(
 			@PathVariable UUID orgId,
-			@PathVariable UUID projectId,
-			Authentication authentication) {
-		ProjectResponse response = projectService.archiveProject(
-				orgId,
-				projectId,
-				getAuthenticatedUserId(authentication));
+			@PathVariable UUID projectId) {
+		ProjectResponse response = projectService.archiveProject(orgId, projectId);
 		return ResponseEntity.ok(response);
 	}
 
-	private UUID getAuthenticatedUserId(Authentication authentication) {
-		return UUID.fromString(authentication.getName());
-	}
 }

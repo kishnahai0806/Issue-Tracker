@@ -98,7 +98,6 @@ class AuthServiceTest {
 		when(refreshTokenStore.hashToken("raw-refresh")).thenReturn("hashed-refresh");
 		when(jwtProperties.getRefreshTokenExpiryMs()).thenReturn(604800000L);
 		when(jwtProperties.getAccessTokenExpiryMs()).thenReturn(900000L);
-		when(organizationMemberRepository.findById_UserId(user.getId())).thenReturn(List.of());
 
 		AuthResponse response = authService.login(new LoginRequest(EMAIL, PASSWORD));
 
@@ -127,13 +126,15 @@ class AuthServiceTest {
 	}
 
 	@Test
-	void login_shouldThrowWhenUserDisabled() {
+	void login_shouldThrowInvalidCredentialsWhenUserDisabled() {
 		User user = activeUser();
 		user.setActive(false);
+		user.setPasswordHash("hash");
 		when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+		when(passwordEncoder.matches(PASSWORD, "hash")).thenReturn(true);
 
 		assertThatThrownBy(() -> authService.login(new LoginRequest(EMAIL, PASSWORD)))
-				.isInstanceOf(UserDisabledException.class);
+				.isInstanceOf(InvalidCredentialsException.class);
 	}
 
 	@Test
@@ -143,7 +144,7 @@ class AuthServiceTest {
 		user.setId(userId);
 		user.setActive(false);
 		when(refreshTokenStore.hashToken("raw-refresh")).thenReturn("hash");
-		when(refreshTokenStore.findUserIdByTokenHash("hash")).thenReturn(Optional.of(userId));
+		when(refreshTokenStore.consumeToken("hash")).thenReturn(Optional.of(userId));
 		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> authService.refresh(new RefreshRequest("raw-refresh")))
