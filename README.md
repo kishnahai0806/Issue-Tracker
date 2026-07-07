@@ -71,17 +71,7 @@ When a user sends a request to Issue Tracker, the Spring Boot API validates the 
 ---
 
 ## Horizontal Pod Autoscaling — Live Demo
-
-The HPA was load-tested on minikube using in-cluster load generators hammering the health endpoint. As CPU crossed the 70% target, the deployment scaled from 2 to 5 replicas, then scaled back down to 2 after the load was removed:
-
-![HPA Scaling Demo](docs/screenshots/hpa-scaling.png)
-
-📹 **Demo video (sped up 4×):** [docs/recordings/hpa-scaling-demo-4x.mp4](docs/recordings/hpa-scaling-demo-4x.mp4)
-*The full-length real-time recording (~9 minutes) is available at [docs/recordings/hpa-scaling-demo-full.mp4](docs/recordings/hpa-scaling-demo-full.mp4).*
-
-The HPA uses a `scaleUp` stabilization window of 60 seconds with a maximum of 2 pods per minute. This was added after observing that JVM startup CPU from newly scheduled pods was itself counted as load by the HPA, triggering runaway scaling cascades — new pods burned CPU on Spring Boot startup, the HPA scaled further in response, starving the cluster until pods crash-looped. The stabilization window absorbs startup spikes so scaling stays proportional to real traffic.
-
-> **Deployment:** Images are published to `ghcr.io/kishnahai0806/issue-tracker` on every push to main. The manifests in `/k8s` run on any Kubernetes cluster.
+> ⚡ The HPA scaling in this architecture was load-tested live on Kubernetes — see the [HPA Scaling Demo](#hpa-scaling--live-demo) in Screenshots.
 
 ---
 
@@ -158,6 +148,7 @@ issue-tracker/
 |-- prometheus/                 # Scrape config and alert rules
 |-- grafana/                    # Dashboard and datasource provisioning
 |-- docs/screenshots/           # README screenshots
+|-- docs/recordings/            # HPA scaling demo video
 \-- otel-collector-config.yml   # OTLP to Jaeger pipeline
 ```
 
@@ -398,3 +389,14 @@ Recent request traces from the issue-tracker service showing security filterchai
 Waterfall trace for POST /api/v1/organizations/{orgId}/projects/{projectId}/issues/{issueId}/attachments showing 269.82ms duration across 6 spans including security filterchain, authorize request, secured request, and authorize method.
 
 ![Jaeger Trace Detail](docs/screenshots/jaeger-trace-details.png)
+
+### HPA Scaling — Live Demo
+The HPA was load-tested on minikube using in-cluster load generators hammering the health endpoint. As CPU crossed the 70% target, the deployment scaled from 2 to 5 replicas, then scaled back down to 2 after the load was removed. The left terminal shows the HPA watch; the right shows the load generators being created and deleted.
+
+![HPA Scaling Demo](docs/screenshots/hpa-scaling.png)
+
+📹 **Demo video (sped up 8×):** [docs/recordings/hpa-scaling-demo-8x.mp4](docs/recordings/hpa-scaling-demo-8x.mp4)
+
+The HPA uses a `scaleUp` stabilization window of 60 seconds with a maximum of 2 pods per minute. This was added after observing that JVM startup CPU from newly scheduled pods was itself counted as load by the HPA, triggering runaway scaling cascades — new pods burned CPU on Spring Boot startup, the HPA scaled further, starving the cluster until pods crash-looped. The stabilization window absorbs startup spikes so scaling stays proportional to real traffic.
+
+> **Deployment:** Images are published to `ghcr.io/kishnahai0806/issue-tracker` on every push to main. The manifests in `/k8s` run on any Kubernetes cluster.
