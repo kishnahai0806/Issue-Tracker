@@ -395,7 +395,10 @@ The HPA was load-tested on minikube using in-cluster load generators hammering t
 
 ![HPA Scaling Demo](docs/screenshots/hpa-scaling.png)
 
-📹 **Demo video (sped up 8×):** [docs/recordings/hpa-scaling-demo-8x.mp4](docs/recordings/hpa-scaling-demo-8x.mp4)
+📹 **Demo video (sped up 8× — full-length recording at [docs/recordings](docs/recordings)):**
+
+https://github.com/user-attachments/assets/ce84e9b3-0959-44e4-8471-53f0ea97b00a
+
 
 The HPA uses a `scaleUp` stabilization window of 60 seconds with a maximum of 2 pods per minute. This was added after observing that JVM startup CPU from newly scheduled pods was itself counted as load by the HPA, triggering runaway scaling cascades — new pods burned CPU on Spring Boot startup, the HPA scaled further, starving the cluster until pods crash-looped. The stabilization window absorbs startup spikes so scaling stays proportional to real traffic.
 
