@@ -18,3 +18,15 @@ spec:
           type: Utilization
           averageUtilization: 70
   # CPU-only HPA: JVM heap does not shrink reliably, so memory-based HPA can ratchet to max replicas permanently.
+  behavior:
+    scaleUp:
+      # 60s stabilization prevents JVM startup CPU from triggering scaling cascades:
+      # new pods burn high CPU during Spring Boot startup, which the HPA would
+      # otherwise count as load and scale further, starving the cluster.
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 120
